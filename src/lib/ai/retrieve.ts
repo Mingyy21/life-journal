@@ -43,7 +43,7 @@ export async function retrieveSimilar(
       // 计算课题重叠分
       const diaryTopics = diary.topicIds || [];
       const topicOverlap = topicIds.length > 0
-        ? diaryTopics.filter(t => topicIds.includes(t)).length / Math.max(topicIds.length, 1)
+        ? diaryTopics.filter((t: string) => topicIds.includes(t)).length / Math.max(topicIds.length, 1)
         : 0;
 
       // 计算关键词Jaccard相似度

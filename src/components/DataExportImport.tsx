@@ -8,20 +8,18 @@ async function importData(jsonText: string) {
   if (!data.diaries || !data.topics || !data.domains) {
     throw new Error("文件格式不匹配");
   }
-  await db.transaction("rw", db.diaries, db.topics, db.lifeDomains, db.analysisResults, db.events, async () => {
-    await db.diaries.clear();
-    await db.topics.clear();
-    await db.lifeDomains.clear();
-    await db.analysisResults.clear();
-    await db.events.clear();
-    await db.insights.clear();
-    await db.lifeDomains.bulkAdd(data.domains);
-    await db.topics.bulkAdd(data.topics);
-    await db.diaries.bulkAdd(data.diaries);
-    if (data.analyses?.length) await db.analysisResults.bulkAdd(data.analyses);
-    if (data.events?.length) await db.events.bulkAdd(data.events);
-    if (data.insights?.length) await db.insights.bulkAdd(data.insights);
-  });
+  await db.insights.clear();
+  await db.diaries.clear();
+  await db.analysisResults.clear();
+  await db.events.clear();
+  await db.topics.clear();
+  await db.lifeDomains.clear();
+  await db.lifeDomains.bulkAdd(data.domains);
+  await db.topics.bulkAdd(data.topics);
+  await db.diaries.bulkAdd(data.diaries);
+  if (data.analyses?.length) await db.analysisResults.bulkAdd(data.analyses);
+  if (data.events?.length) await db.events.bulkAdd(data.events);
+  if (data.insights?.length) await db.insights.bulkAdd(data.insights);
   return { diaries: data.diaries.length, events: data.events?.length || 0, insights: data.insights?.length || 0 };
 }
 

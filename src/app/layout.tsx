@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Layout from "@/components/Layout";
+import AppProviders from "@/components/AppProviders";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -23,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="antialiased">
-        <Layout>{children}</Layout>
+        <AppProviders><Layout>{children}</Layout></AppProviders>
       </body>
     </html>
   );

@@ -1,11 +1,13 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { BookOpen, Menu, X, Home, Compass, BarChart3, Search, Flag } from "lucide-react";
+import { BookOpen, Menu, X, Home, Compass, BarChart3, Search, Flag, LogOut } from "lucide-react";
 import ErrorBoundary from "./ErrorBoundary";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { userId, email, loading, setShowAuthGate, signOut } = useAuth();
 
   return (
     <div className="min-h-screen bg-warm-50 text-calm-800 font-sans">
@@ -15,9 +17,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <BookOpen className="w-5 h-5 text-primary-600" />
             <span className="font-serif text-lg font-medium text-calm-900">人生手记</span>
           </Link>
-          <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden p-2 rounded-lg hover:bg-calm-100" aria-label="菜单">
-            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+          <div className="flex items-center gap-2">
+            {!loading && !userId && (
+              <button onClick={() => setShowAuthGate(true)} className="text-xs px-3 py-1.5 rounded-full bg-primary-50 text-primary-600 hover:bg-primary-100 transition-colors active:scale-95">
+                登录
+              </button>
+            )}
+            {!loading && userId && email && (
+              <button onClick={() => signOut()} className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg text-calm-400 hover:text-calm-600 active:scale-95 transition-colors" title={email}>
+                <span className="max-w-[80px] truncate hidden sm:inline">{email}</span>
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden p-2 rounded-lg hover:bg-calm-100" aria-label="菜单">
+              {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
           <nav className="hidden md:flex items-center gap-4">
             <Link href="/" className="text-sm text-calm-500 hover:text-calm-800 flex items-center gap-1"><Home className="w-4 h-4" /> 首页</Link>
             <Link href="/events" className="text-sm text-calm-500 hover:text-calm-800 flex items-center gap-1"><Flag className="w-4 h-4" /> 事件</Link>

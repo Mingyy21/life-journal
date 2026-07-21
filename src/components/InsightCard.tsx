@@ -16,7 +16,7 @@ export default function InsightCard({ insight, topics, events, onDelete }: Props
   const eventMap = new Map(events.map(e => [e.id, e]));
 
   return (
-    <div className="bg-white rounded-xl border border-calm-100 hover:border-amber-200 hover:shadow-sm transition-all p-4 group">
+    <div className="bg-white rounded-xl border border-calm-100 hover:border-amber-200 shadow-card hover:shadow-card-hover transition-all duration-300 p-4 group">
       <div className="flex items-start gap-3">
         <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center flex-shrink-0 mt-0.5">
           <Lightbulb className="w-4 h-4 text-amber-500" />
@@ -27,7 +27,7 @@ export default function InsightCard({ insight, topics, events, onDelete }: Props
               {insight.title}
             </Link>
             {onDelete && (
-              <button onClick={onDelete} className="text-calm-300 hover:text-red-400 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+              <button onClick={onDelete} className="p-2 text-calm-300 hover:text-red-400 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all active:scale-95">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             )}

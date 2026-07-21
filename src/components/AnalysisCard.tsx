@@ -19,7 +19,7 @@ export default function AnalysisCard({ analysis }: { analysis: AnalysisResult; d
   const stage = SI[analysis.cognitiveStage] || SI["觉察"];
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-primary-100 overflow-hidden animate-fade-in">
+    <div className="bg-white rounded-2xl shadow-card border border-primary-100 overflow-hidden animate-fade-in">
       <button onClick={()=>setExpanded(!expanded)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-primary-50/50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center"><Brain className="w-4 h-4 text-primary-600" /></div>

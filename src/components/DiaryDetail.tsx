@@ -41,7 +41,7 @@ export default function DiaryDetail({ diary, topics, linkedEvent, onLinkEvent, o
   }, []);
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-calm-200 p-6">
+    <div className="bg-white rounded-2xl shadow-card border border-calm-200 p-5">
       <div className="flex items-start justify-between gap-3 mb-2">
         <h1 className="text-xl font-serif font-semibold text-calm-900">{diary.title}</h1>
       </div>

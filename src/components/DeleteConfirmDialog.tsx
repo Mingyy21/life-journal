@@ -10,7 +10,7 @@ interface Props {
 
 export default function DeleteConfirmDialog({ title, message, onConfirm, onCancel }: Props) {
   return (
-    <div className="bg-red-50 rounded-2xl p-4 border border-red-100 text-center">
+    <div className="bg-red-50 rounded-xl p-4 border border-red-100 text-center">
       <AlertTriangle className="w-5 h-5 text-red-400 mx-auto mb-2" />
       <p className="text-sm font-medium text-red-500 mb-1">{title}</p>
       <p className="text-xs text-red-400 mb-3">{message}</p>

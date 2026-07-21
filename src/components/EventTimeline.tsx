@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { ChevronRight, Brain } from "lucide-react";
+import { ChevronRight, Brain, BookOpen } from "lucide-react";
+import EmptyState from "./EmptyState";
 import type { Diary, Topic } from "@/types";
 import { ClientDate } from "./ClientDate";
 
@@ -14,7 +15,7 @@ export default function EventTimeline({ diaries, topics }: Props) {
   const sorted = [...diaries].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   if (sorted.length === 0) {
-    return <p className="text-center text-calm-400 text-sm py-8">还没有关联的日记</p>;
+    return <EmptyState icon={<BookOpen className="w-12 h-12" />} title="还没有关联的日记" description="将日记关联到这个事件后会在这里展示" />;
   }
 
   return (
@@ -22,10 +23,10 @@ export default function EventTimeline({ diaries, topics }: Props) {
       {sorted.map((diary, idx) => {
         const dts = (diary.topicIds || []).map(id => topicMap.get(id)).filter(Boolean) as Topic[];
         return (
-          <div key={diary.id} className="relative">
+          <div key={diary.id} className="relative animate-fade-in-up" style={{ animationDelay: `${idx * 50}ms` }}>
             <div className="absolute left-[-29px] top-2 w-3 h-3 rounded-full border-2 border-calm-200 bg-white" />
             <Link href={`/diary/${diary.id}`}
-              className="block bg-white rounded-xl border border-calm-100 hover:border-calm-200 hover:shadow-sm transition-all p-3 group">
+              className="block bg-white rounded-xl border border-calm-100 hover:border-calm-200 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300 p-4 group">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">

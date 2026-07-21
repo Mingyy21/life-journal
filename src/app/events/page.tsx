@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, AlertCircle } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { db, ensureDb } from "@/lib/db";
 import EventCard from "@/components/EventCard";
 import type { Event, Topic } from "@/types";
@@ -51,11 +52,7 @@ export default function EventsPage() {
       <h1 className="text-lg font-serif font-semibold text-calm-900">事件总览</h1>
 
       {groups.length === 0 ? (
-        <div className="text-center py-16">
-          <AlertCircle className="w-12 h-12 text-calm-200 mx-auto mb-3" />
-          <p className="text-calm-400 text-sm">还没有事件</p>
-          <p className="text-calm-300 text-xs mt-1">将日记升级为事件，开始追踪你的成长</p>
-        </div>
+        <EmptyState icon={<AlertCircle className="w-16 h-16" />} title="还没有事件" description="将日记升级为事件，开始追踪你的成长" actionLabel="去写日记" actionHref="/" />
       ) : (
         <div className="space-y-6">
           {groups.map(g => (

@@ -46,7 +46,7 @@ export default function SearchResults({ results, topics, keyword, isLoading }: P
       {results.map(diary => {
         const dts = (diary.topicIds || []).map(id => topicMap.get(id)).filter(Boolean) as Topic[];
         return (
-          <Link key={diary.id} href={`/diary/${diary.id}`} className="block bg-white rounded-xl border border-calm-200 p-5 hover:border-primary-200 hover:shadow-sm transition-all">
+          <Link key={diary.id} href={`/diary/${diary.id}`} className="block bg-white rounded-xl border border-calm-200 p-5 hover:border-primary-200 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300">
             <div className="flex items-start justify-between gap-2 mb-1">
               <h3
                 className="text-base font-serif font-medium text-calm-900 line-clamp-1"

@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Lightbulb, Plus, Pencil, Trash2, Settings2 } from "lucide-react";
+import { ArrowLeft, Lightbulb, Plus, Pencil, Trash2, Settings2, Compass } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import Link from "next/link";
 import TopicOverview from "@/components/TopicOverview";
 import TopicForm from "@/components/TopicForm";
@@ -148,9 +149,9 @@ export default function TopicsPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <button onClick={() => { setEditingDomain(d); setShowDomainForm(true); setShowTopicForm(false); }}
-                      className="p-1 text-calm-300 hover:text-primary-500"><Pencil className="w-3 h-3" /></button>
+                      className="p-2 text-calm-300 hover:text-primary-500 active:scale-95 transition-transform"><Pencil className="w-3.5 h-3.5" /></button>
                     <button onClick={() => setDeleteTarget({ type: "domain", id: d.id, name: d.name })}
-                      className="p-1 text-calm-300 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
+                      className="p-2 text-calm-300 hover:text-red-400 active:scale-95 transition-transform"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
                 <div className="space-y-1 ml-5">
@@ -163,9 +164,9 @@ export default function TopicsPage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <button onClick={() => { setEditingTopic(t); setShowTopicForm(true); setShowDomainForm(false); }}
-                          className="p-1 text-calm-300 hover:text-primary-500"><Pencil className="w-2.5 h-2.5" /></button>
+                          className="p-2 text-calm-300 hover:text-primary-500 active:scale-95 transition-transform"><Pencil className="w-3.5 h-3.5" /></button>
                         <button onClick={() => setDeleteTarget({ type: "topic", id: t.id, name: t.name })}
-                          className="p-1 text-calm-300 hover:text-red-400"><Trash2 className="w-2.5 h-2.5" /></button>
+                          className="p-2 text-calm-300 hover:text-red-400 active:scale-95 transition-transform"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   ))}
@@ -177,6 +178,16 @@ export default function TopicsPage() {
       )}
 
       <TopicOverview domains={domains} topics={topics} topicStats={topicStats} />
+
+      {domains.length === 0 && !loading && (
+        <EmptyState
+          icon={<Compass className="w-16 h-16" />}
+          title="还没有领域"
+          description="创建一个领域来组织你的人生课题"
+          actionLabel="创建第一个领域"
+          onAction={() => { setShowDomainForm(true); setManageMode(true); }}
+        />
+      )}
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, TrendingUp, BookOpen, PieChart, Trophy } from "lucide-react";
+import { ArrowLeft, TrendingUp, BookOpen, PieChart, Trophy, BarChart3 } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { db, ensureDb } from "@/lib/db";
 import EmotionPetalChart from "@/components/EmotionPetalChart";
 import TrendReportCard, { type TrendCardReport } from "@/components/TrendReportCard";
@@ -111,17 +112,17 @@ export default function StatsPage() {
 
       {/* 概览卡片 */}
       <div className="grid grid-cols-3 sm:grid-cols-3 gap-3">
-        <div className="bg-white rounded-xl border border-calm-200 p-4 text-center">
+        <div className="bg-gradient-to-br from-primary-50/40 to-white rounded-xl border border-calm-200 p-5 shadow-card text-center">
           <BookOpen className="w-5 h-5 text-primary-400 mx-auto mb-1" />
           <p className="text-2xl font-bold text-calm-800">{diaries.length}</p>
           <p className="text-xs text-calm-400">总日记</p>
         </div>
-        <div className="bg-white rounded-xl border border-calm-200 p-4 text-center">
+        <div className="bg-gradient-to-br from-emerald-50/40 to-white rounded-xl border border-calm-200 p-5 shadow-card text-center">
           <TrendingUp className="w-5 h-5 text-emerald-400 mx-auto mb-1" />
           <p className="text-2xl font-bold text-calm-800">{totalWords.toLocaleString()}</p>
           <p className="text-xs text-calm-400">总字数</p>
         </div>
-        <div className="bg-white rounded-xl border border-calm-200 p-4 text-center">
+        <div className="bg-gradient-to-br from-amber-50/40 to-white rounded-xl border border-calm-200 p-5 shadow-card text-center">
           <PieChart className="w-5 h-5 text-amber-400 mx-auto mb-1" />
           <p className="text-2xl font-bold text-calm-800">{avgWords}</p>
           <p className="text-xs text-calm-400">平均字数/篇</p>
@@ -130,7 +131,7 @@ export default function StatsPage() {
 
       {/* 本周情绪花瓣 */}
       {weeklyEmotions && (
-        <div className="bg-white rounded-xl border border-calm-200 p-5">
+        <div className="bg-gradient-to-br from-primary-50/30 to-white rounded-xl border border-calm-200 p-5 shadow-card">
           <h3 className="text-sm font-medium text-calm-700 mb-3">本周情绪花瓣</h3>
           <EmotionPetalChart scores={weeklyEmotions} />
         </div>
@@ -140,7 +141,7 @@ export default function StatsPage() {
       {freqEntries.length > 0 && (
         <div className="bg-white rounded-xl border border-calm-200 p-5">
           <h3 className="text-sm font-medium text-calm-700 mb-3">每日写作频率</h3>
-          <div className="flex items-end gap-0.5 h-24">
+          <div className="flex items-end gap-0.5 h-24 overflow-x-auto">
             {freqEntries.slice(-60).map(([date, count]) => (
               <div key={date} className="flex-1 flex flex-col items-center justify-end min-w-[6px]" title={`${date}: ${count}篇`}>
                 <div className="w-full rounded-t-sm bg-primary-400/60 hover:bg-primary-400 transition-colors" style={{ height: `${(count / maxFreq) * 100}%`, minHeight: count > 0 ? 4 : 0 }} />
@@ -176,7 +177,7 @@ export default function StatsPage() {
       {emotionTrend.length > 0 && (
         <div className="bg-white rounded-xl border border-calm-200 p-5">
           <h3 className="text-sm font-medium text-calm-700 mb-3">情绪趋势（近30篇）</h3>
-          <div className="flex items-end gap-0.5 h-20">
+          <div className="flex items-end gap-0.5 h-20 overflow-x-auto">
             {emotionTrend.map(({ date, valence }) => {
               const h = ((valence + 1) / 2) * 100;
               const color = valence > 0.2 ? "#4ECDC4" : valence < -0.2 ? "#FF6B6B" : "#DDA0DD";
@@ -234,12 +235,12 @@ export default function StatsPage() {
       </div>
 
       {diaries.length === 0 && (
-        <div className="text-center py-12 text-calm-400 text-sm">还没有数据，开始写日记吧</div>
+        <EmptyState icon={<BarChart3 className="w-16 h-16" />} title="还没有数据" description="写日记后，这里会展示你的数据统计" actionLabel="开始写日记" actionHref="/" />
       )}
 
       {/* 成长里程碑 */}
       {milestones.length > 0 && (
-        <div className="bg-white rounded-xl border border-emerald-200 p-5">
+        <div className="bg-gradient-to-br from-emerald-50/30 to-white rounded-xl border border-emerald-200 p-5 shadow-card">
           <h3 className="text-sm font-medium text-calm-700 mb-3">成长里程碑</h3>
           <div className="space-y-3">
             {milestones.slice(0, 3).map((m, i) => (

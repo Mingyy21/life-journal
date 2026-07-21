@@ -1,6 +1,8 @@
 "use client";
 import type { Insight, Topic, Event } from "@/types";
 import InsightCard from "./InsightCard";
+import { Lightbulb } from "lucide-react";
+import EmptyState from "./EmptyState";
 
 interface Props {
   insights: Insight[];
@@ -11,7 +13,7 @@ interface Props {
 
 export default function InsightList({ insights, topics, events, onDeleteInsight }: Props) {
   if (insights.length === 0) {
-    return <p className="text-center text-calm-400 text-sm py-8">还没有感悟</p>;
+    return <EmptyState icon={<Lightbulb className="w-12 h-12" />} title="还没有感悟" description="在日记详情页可以提炼感悟" />;
   }
 
   return (

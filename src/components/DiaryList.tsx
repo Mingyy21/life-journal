@@ -2,6 +2,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { Calendar, ChevronRight, Brain } from "lucide-react";
+import EmptyState from "./EmptyState";
 import type { Diary, Topic, Event } from "@/types";
 import { ClientDate } from "./ClientDate";
 import { EventBadge } from "./EventBadge";
@@ -33,7 +34,7 @@ export default function DiaryList({ diaries, topics, events = [], loading }: Pro
   }
 
   if (diaries.length === 0) {
-    return <div className="text-center py-16"><Calendar className="w-12 h-12 text-calm-200 mx-auto mb-3"/><p className="text-calm-400 text-sm">还没有记录</p><p className="text-calm-300 text-xs mt-1">写下你的第一篇人生手记吧</p></div>;
+    return <EmptyState icon={<Calendar className="w-16 h-16" />} title="还没有记录" description="写下你的第一篇人生手记吧" actionLabel="写第一篇日记" actionHref="/" />;
   }
 
   return (
@@ -42,10 +43,10 @@ export default function DiaryList({ diaries, topics, events = [], loading }: Pro
         <div key={dateKey}>
           <h3 className="text-sm font-medium text-calm-400 mb-2 sticky top-14 bg-warm-50 py-1">{dateKey}</h3>
           <div className="space-y-2">
-            {items.map(diary => {
+            {items.map((diary, idx) => {
               const dts = (diary.topicIds || []).map(id => topics.find(t => t.id === id)).filter(Boolean) as Topic[];
               return (
-                <Link key={diary.id} href={`/diary/${diary.id}`} className="group block bg-white rounded-xl border border-calm-100 hover:border-calm-200 hover:shadow-sm transition-all p-4">
+                <Link key={diary.id} href={`/diary/${diary.id}`} className="block bg-white rounded-xl border border-calm-100 hover:border-calm-200 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300 p-4 animate-fade-in-up" style={{ animationDelay: `${idx % 10 * 50}ms` }}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">

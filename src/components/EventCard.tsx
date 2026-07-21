@@ -13,7 +13,7 @@ interface Props {
 export default function EventCard({ event, diaryCount }: Props) {
   return (
     <Link href={`/events/${event.id}`}
-      className="block bg-white rounded-xl border border-calm-100 hover:border-calm-200 hover:shadow-sm transition-all p-4 group">
+      className="block bg-white rounded-xl border border-calm-100 hover:border-calm-200 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300 p-4 group">
       <div className="flex items-start justify-between gap-2 mb-2">
         <h3 className="text-sm font-medium text-calm-800 line-clamp-1 group-hover:text-primary-600 transition-colors">
           {event.title}

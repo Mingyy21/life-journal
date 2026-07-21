@@ -29,7 +29,7 @@ export default function DailyReviewBanner({ diaryCount, onRequestReview }: Props
   };
 
   return (
-    <div className="bg-gradient-to-r from-primary-50 to-amber-50 rounded-2xl border border-primary-100 p-4">
+    <div className="bg-gradient-to-r from-primary-50 to-amber-50 rounded-2xl border border-primary-100 p-5 shadow-card">
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary-400" />

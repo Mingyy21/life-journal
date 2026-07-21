@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, FolderOpen, Plus, Lightbulb } from "lucide-react";
+import { ArrowLeft, Loader2, FolderOpen, Plus, Lightbulb, Flag } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import Link from "next/link";
 import SortSelector, { type SortMode } from "@/components/SortSelector";
 import TopicDiaryList from "@/components/TopicDiaryList";
@@ -241,7 +242,7 @@ export default function TopicDetailPage() {
       ) : activeTab === "events" ? (
         <div className="space-y-2">
           {topicEvents.length === 0 ? (
-            <p className="text-center text-calm-400 text-sm py-8">该课题下还没有事件</p>
+            <EmptyState icon={<Flag className="w-12 h-12" />} title="该课题下还没有事件" description="为这个课题创建一个事件来跟踪进度" actionLabel="去写日记" actionHref="/" />
           ) : (
             topicEvents.map(ev => (
               <EventCard key={ev.id} event={ev} diaryCount={eventDiaryCount.get(ev.id) || 0} />

@@ -28,7 +28,7 @@ export default function TrendReportCard({ scope, label, hasData, loading, report
   const { Icon, color } = ICONS[scope];
 
   return (
-    <div className="bg-white rounded-xl border border-calm-200 p-4">
+    <div className="bg-white rounded-xl border border-calm-200 p-5 shadow-card">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Icon className={`w-4 h-4 ${color}`} />

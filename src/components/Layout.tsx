@@ -39,7 +39,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         )}
       </header>
       <main className="max-w-2xl mx-auto px-4 py-6"><ErrorBoundary>{children}</ErrorBoundary></main>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-calm-200 z-50">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-calm-200 z-50 pb-[env(safe-area-inset-bottom,0px)]">
         <div className="flex items-center justify-around h-14">
           <Link href="/" className="flex flex-col items-center gap-0.5 text-calm-400 hover:text-primary-600"><Home className="w-5 h-5" /><span className="text-xs">首页</span></Link>
           <Link href="/events" className="flex flex-col items-center gap-0.5 text-calm-400 hover:text-primary-600"><Flag className="w-5 h-5" /><span className="text-xs">事件</span></Link>
@@ -47,7 +47,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/stats" className="flex flex-col items-center gap-0.5 text-calm-400 hover:text-primary-600"><BarChart3 className="w-5 h-5" /><span className="text-xs">统计</span></Link>
         </div>
       </nav>
-      <div className="md:hidden h-14" />
+      <div className="md:hidden" style={{ height: `calc(56px + env(safe-area-inset-bottom, 0px))` }} />
     </div>
   );
 }

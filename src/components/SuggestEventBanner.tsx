@@ -14,7 +14,7 @@ interface Props {
 
 export default function SuggestEventBanner({ topicName, topicColor, count, earliestDate, latestDate, onCreateEvent, onDismiss }: Props) {
   return (
-    <div className="bg-white rounded-2xl border border-amber-200 p-4 shadow-sm">
+    <div className="bg-white rounded-2xl border border-amber-200 p-5 shadow-card">
       <div className="flex items-start gap-3">
         <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: topicColor + "20" }}>
           <Lightbulb className="w-4 h-4" style={{ color: topicColor }} />

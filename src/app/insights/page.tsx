@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Lightbulb } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import { db, ensureDb } from "@/lib/db";
 import InsightList from "@/components/InsightList";
 import InsightForm from "@/components/InsightForm";
@@ -64,11 +65,7 @@ export default function InsightsPage() {
       )}
 
       {insights.length === 0 && !showForm ? (
-        <div className="text-center py-16">
-          <Lightbulb className="w-12 h-12 text-calm-200 mx-auto mb-3" />
-          <p className="text-calm-400 text-sm">还没有感悟</p>
-          <p className="text-calm-300 text-xs mt-1">从日记中提炼成长感悟，或独立记录你的思考</p>
-        </div>
+        <EmptyState icon={<Lightbulb className="w-16 h-16" />} title="还没有感悟" description="从日记中提炼成长感悟，或独立记录你的思考" actionLabel="新建第一条感悟" onAction={() => setShowForm(true)} />
       ) : (
         <InsightList insights={insights} topics={topics} events={events} onDeleteInsight={handleDelete} />
       )}

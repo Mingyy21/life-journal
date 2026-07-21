@@ -45,7 +45,7 @@ export default function PatternAlert({ alerts, onDismiss }: Props) {
               )}
             </div>
             {onDismiss && (
-              <button onClick={() => onDismiss(idx)} className="text-calm-300 hover:text-calm-500 flex-shrink-0">
+              <button onClick={() => onDismiss(idx)} className="p-2 text-calm-300 hover:text-calm-500 flex-shrink-0 active:scale-95 transition-transform">
                 <X className="w-3.5 h-3.5" />
               </button>
             )}

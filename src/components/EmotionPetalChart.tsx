@@ -43,7 +43,7 @@ export default function EmotionPetalChart({ scores, size = 280, className = "" }
 
   return (
     <div className={className}>
-      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} className="mx-auto">
+      <svg viewBox={`0 0 ${size} ${size}`} className="mx-auto max-w-full" style={{ width: `min(${size}px, 100%)`, height: `min(${size}px, 100%)` }}>
         {/* subtle grid circles */}
         {[0.25, 0.5, 0.75].map(pct => (
           <circle key={pct} cx={cx} cy={cy} r={maxR * pct} fill="none" stroke="#e2e8f0" strokeWidth={0.5} strokeDasharray="3,3" />

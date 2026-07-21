@@ -33,7 +33,7 @@ export default function DomainTopicFilter({ domains, topics, selectedTopicId, on
                 {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
               </button>
               {isExpanded && (
-                <div className="absolute top-full mt-1 left-0 bg-white rounded-xl shadow-lg border border-calm-100 p-2 z-20 min-w-[120px]">
+                <div className="absolute top-full mt-1 left-0 bg-white rounded-xl shadow-popup border border-calm-100 p-2 z-20 min-w-[120px]">
                   {subs.map(t => (
                     <button key={t.id}
                       onClick={() => { onTopicSelect(t.id === selectedTopicId ? null : t.id); setExpandedDomain(null); }}

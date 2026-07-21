@@ -36,7 +36,7 @@ export default function SearchHistory({ history, onSelect, onClear, onRemove }: 
               <span>{h.keyword}</span>
               <span className="text-calm-300">{relativeTime(h.timestamp)}</span>
             </button>
-            <button onClick={e => { e.stopPropagation(); onRemove(h.keyword); }} className="ml-0.5 text-calm-300 hover:text-calm-500">
+            <button onClick={e => { e.stopPropagation(); onRemove(h.keyword); }} className="p-2 text-calm-300 hover:text-calm-500 active:scale-95 transition-transform">
               <X className="w-3 h-3" />
             </button>
           </span>

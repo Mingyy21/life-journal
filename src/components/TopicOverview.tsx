@@ -29,7 +29,7 @@ export default function TopicOverview({ domains, topics, topicStats }: Props) {
                 const stats = topicStats[t.id] || { total: 0, unresolved: 0, latestDate: null };
                 return (
                   <Link key={t.id} href={`/topics/${t.id}`}
-                    className="flex items-center justify-between bg-white rounded-xl border border-calm-100 hover:border-calm-200 hover:shadow-sm transition-all p-3.5 group">
+                    className="flex items-center justify-between bg-white rounded-xl border border-calm-100 hover:border-calm-200 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300 p-4 group">
                     <div className="flex items-center gap-3 min-w-0">
                       <span className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ backgroundColor: t.color }}>
                         {t.name[0]}

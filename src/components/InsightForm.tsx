@@ -39,7 +39,7 @@ export default function InsightForm({ topics, events, initialContent = "", initi
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-amber-200 p-5">
+    <div className="bg-white rounded-2xl shadow-card border border-amber-200 p-5">
       <div className="flex items-center gap-2 mb-4">
         <Lightbulb className="w-5 h-5 text-amber-500" />
         <h3 className="text-sm font-medium text-calm-800">新感悟</h3>

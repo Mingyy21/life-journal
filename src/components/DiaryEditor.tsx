@@ -91,8 +91,13 @@ export default function DiaryEditor({ domains, topics, events, initialValues, on
       <input type="text" value={title} onChange={e => setTitle(e.target.value)}
         placeholder="给今天的记录起个标题..." className="w-full text-lg font-serif font-medium text-calm-900 placeholder-calm-300 border-none outline-none bg-transparent mb-3" />
       <textarea value={content} onChange={e => setContent(e.target.value)}
+        onInput={e => { const el = e.target as HTMLTextAreaElement; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }}
         placeholder="今天发生了什么？你的感受是什么？" rows={6}
-        className="w-full text-base text-calm-700 placeholder-calm-300 border-none outline-none bg-transparent resize-none leading-relaxed" />
+        className="w-full text-base text-calm-700 placeholder-calm-300 border-none outline-none bg-transparent resize-none leading-relaxed min-h-[160px]" />
+
+      <div className="flex justify-end mb-2">
+        <span className="text-xs text-calm-400">{content.length} 字</span>
+      </div>
 
       <div className="border-t border-calm-100 pt-3 mt-2">
         <DomainTopicSelector domains={domains} topics={topics} selectedTopicIds={topicIds} onChange={setTopicIds} />

@@ -77,6 +77,20 @@ const config: Config = {
           "100%": { opacity: "1", transform: "scale(1)" },
         },
       },
+      typography: {
+        "calm": {
+          css: {
+            "--tw-prose-body": "var(--color-calm-700)",
+            "--tw-prose-headings": "var(--color-calm-900)",
+            "--tw-prose-links": "var(--color-primary-600)",
+            "--tw-prose-bold": "var(--color-calm-900)",
+            "--tw-prose-quotes": "var(--color-calm-600)",
+            "--tw-prose-code": "var(--color-calm-800)",
+            "--tw-prose-hr": "var(--color-calm-200)",
+            "--tw-prose-th-borders": "var(--color-calm-300)",
+          },
+        },
+      },
       boxShadow: {
         'card': '0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.03)',
         'card-hover': '0 4px 12px 0 rgb(0 0 0 / 0.06), 0 1px 3px 0 rgb(0 0 0 / 0.04)',
@@ -84,7 +98,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [],
+  plugins: [require("@tailwindcss/typography")],
 };
 
 export default config;

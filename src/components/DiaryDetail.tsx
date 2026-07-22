@@ -5,6 +5,7 @@ import type { Diary, Topic, Event } from "@/types";
 import { ClientDate } from "./ClientDate";
 import { EventBadge } from "./EventBadge";
 import EventSelector from "./EventSelector";
+import MarkdownRenderer from "./MarkdownRenderer";
 
 interface Props {
   diary: Diary;
@@ -103,8 +104,8 @@ export default function DiaryDetail({ diary, topics, linkedEvent, events, onLink
         </div>
       )}
 
-      <div ref={contentRef} onMouseUp={onExtractInsight ? handleMouseUp : undefined} onTouchEnd={onExtractInsight ? handleMouseUp : undefined} className="text-calm-700 leading-relaxed whitespace-pre-wrap text-base select-text">
-        {diary.content}
+      <div ref={contentRef} onMouseUp={onExtractInsight ? handleMouseUp : undefined} onTouchEnd={onExtractInsight ? handleMouseUp : undefined} className="text-base select-text">
+        <MarkdownRenderer content={diary.content} />
       </div>
 
       {/* 浮动"提炼为感悟"按钮 */}

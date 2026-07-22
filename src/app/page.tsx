@@ -13,6 +13,7 @@ import { runAllPatternChecks } from "@/lib/pattern-store";
 import { useDiary } from "@/hooks/useDiary";
 import { useSuggestEvent } from "@/hooks/useSuggestEvent";
 import { useEvents } from "@/hooks/useData";
+import { useStreak } from "@/hooks/useStreak";
 import { db } from "@/lib/db";
 import type { Event } from "@/types";
 
@@ -40,6 +41,7 @@ export default function HomePage() {
 
   const qc = useQueryClient();
   const suggestion = useSuggestEvent(diaries, topics);
+  const streak = useStreak();
 
   const refreshWithFilter = useCallback((date: Date, topicId: string | null) => {
     loadData({
@@ -109,6 +111,14 @@ export default function HomePage() {
       )}
 
       <PatternAlert alerts={patternAlerts} onDismiss={(idx) => setPatternAlerts(prev => prev.filter((_, i) => i !== idx))} />
+
+      {streak.count > 0 && (
+        <div className="flex items-center justify-center gap-1.5 text-xs text-calm-400">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary-400" />
+          已连续记录 <strong className="text-calm-600 font-semibold">{streak.count}</strong> 天
+        </div>
+      )}
+
       <DateNavigator selectedDate={selectedDate} onChange={handleDateChange} />
 
       {!showEditor ? (

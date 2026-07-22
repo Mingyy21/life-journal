@@ -50,19 +50,7 @@ export default function DiaryEditor({ domains, topics, events, initialValues, on
   const [topicIds, setTopicIds] = useState<string[]>(initialValues?.topicIds || draft?.topicIds || []);
   const [eventId, setEventId] = useState<string | null>(initialValues?.eventId ?? draft?.eventId ?? null);
   const [saving, setSaving] = useState(false);
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const handler = () => {
-      const diff = window.innerHeight - vv.height;
-      setKeyboardOpen(diff > 100);
-    };
-    vv.addEventListener("resize", handler);
-    return () => vv.removeEventListener("resize", handler);
-  }, []);
 
   const debouncedSave = useCallback((draft: Draft) => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -87,7 +75,7 @@ export default function DiaryEditor({ domains, topics, events, initialValues, on
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-card border border-calm-200 p-5 animate-slide-up pb-20 md:pb-5">
+    <div className="bg-white rounded-2xl shadow-card border border-calm-200 p-5 animate-slide-up">
       <input type="text" value={title} onChange={e => setTitle(e.target.value)}
         placeholder="给今天的记录起个标题..." className="w-full text-lg font-serif font-medium text-calm-900 placeholder-calm-300 border-none outline-none bg-transparent mb-3" />
       <textarea value={content} onChange={e => setContent(e.target.value)}
@@ -114,7 +102,7 @@ export default function DiaryEditor({ domains, topics, events, initialValues, on
         />
       </div>
 
-      <div className={`flex items-center justify-between pt-4 mt-2 border-t border-calm-100 bg-white ${keyboardOpen ? "static" : "md:static fixed bottom-0 left-0 right-0"} border-t border-calm-200 px-4 py-3 md:px-0 md:py-0 md:border-t-0 md:border-0 z-50 md:z-30`} style={{ paddingBottom: `calc(12px + env(safe-area-inset-bottom, 0px))` }}>
+      <div className="flex items-center justify-between pt-4 mt-2 border-t border-calm-100 px-4 py-3 md:px-0 md:py-0 md:border-t-0">
         <button onClick={onCancel} className="flex items-center gap-1 px-3 py-2.5 text-sm text-calm-400 hover:text-calm-600 active:scale-95 transition-transform"><X className="w-4 h-4" /> 取消</button>
         <button onClick={handleSave} disabled={!content.trim() || saving}
           className="flex items-center gap-1.5 px-5 py-2 bg-primary-600 text-white rounded-full text-sm font-medium hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95">

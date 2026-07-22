@@ -54,7 +54,7 @@ export default function InsightForm({ topics, events, initialContent = "", initi
 
       {/* 关联课题 */}
       <div className="mb-3">
-        <p className="text-xs text-calm-400 mb-1.5">关联课题</p>
+        <p className="text-xs text-calm-400 mb-1.5">关联课题（选填，点选绑定）</p>
         <div className="flex flex-wrap gap-1.5">
           {topics.map(t => (
             <button key={t.id} onClick={() => toggleTopic(t.id)}
@@ -64,25 +64,25 @@ export default function InsightForm({ topics, events, initialContent = "", initi
               {t.name}
             </button>
           ))}
+          {topics.length === 0 && <span className="text-xs text-calm-300">暂无课题</span>}
         </div>
       </div>
 
       {/* 关联事件 */}
-      {events.length > 0 && (
-        <div className="mb-3">
-          <p className="text-xs text-calm-400 mb-1.5">关联事件</p>
-          <div className="flex flex-wrap gap-1.5">
-            {events.map(ev => (
-              <button key={ev.id} onClick={() => toggleEvent(ev.id)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                  linkedEventIds.includes(ev.id) ? "bg-calm-800 text-white" : "bg-calm-50 text-calm-500 hover:bg-calm-100"
-                }`}>
-                {ev.title}
-              </button>
-            ))}
-          </div>
+      <div className="mb-3">
+        <p className="text-xs text-calm-400 mb-1.5">关联事件（选填，点选绑定）</p>
+        <div className="flex flex-wrap gap-1.5">
+          {events.map(ev => (
+            <button key={ev.id} onClick={() => toggleEvent(ev.id)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                linkedEventIds.includes(ev.id) ? "bg-calm-800 text-white" : "bg-calm-50 text-calm-500 hover:bg-calm-100"
+              }`}>
+              {ev.title}
+            </button>
+          ))}
+          {events.length === 0 && <span className="text-xs text-calm-300">暂无事件</span>}
         </div>
-      )}
+      </div>
 
       <div className="flex items-center justify-between pt-3 border-t border-calm-100">
         <button onClick={onCancel} className="flex items-center gap-1 px-3 py-1.5 text-sm text-calm-400 hover:text-calm-600"><X className="w-4 h-4" /> 取消</button>

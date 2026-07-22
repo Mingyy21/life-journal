@@ -213,20 +213,18 @@ export default function TopicDetailPage() {
                     ))}
                   </div>
                   {selectedDiaryIds.size > 0 && (
-                    <div className="flex gap-2 pt-2 border-t border-amber-200">
+                    <div className="flex flex-col gap-2 pt-2 border-t border-amber-200">
+                      <select value="" onChange={e => { if (e.target.value) handleBatchLink(e.target.value); }}
+                        className="w-full text-xs border border-amber-300 rounded-full px-3 py-2 text-amber-700 bg-white">
+                        <option value="">归入已有事件...</option>
+                        {allEvents.map(ev => (
+                          <option key={ev.id} value={ev.id}>{ev.title}</option>
+                        ))}
+                      </select>
                       <button onClick={handleCreateAndLink}
-                        className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium rounded-full bg-amber-500 text-white hover:bg-amber-600">
+                        className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
                         <Plus className="w-3 h-3" /> 新建事件并归入
                       </button>
-                      {topicEvents.length > 0 && (
-                        <select value="" onChange={e => e.target.value && handleBatchLink(e.target.value)}
-                          className="flex-1 text-xs border border-amber-300 rounded-full px-3 py-1.5 text-amber-700 bg-white">
-                          <option value="">归入已有事件...</option>
-                          {topicEvents.map(ev => (
-                            <option key={ev.id} value={ev.id}>{ev.title}</option>
-                          ))}
-                        </select>
-                      )}
                     </div>
                   )}
                 </div>

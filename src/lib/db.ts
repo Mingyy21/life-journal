@@ -66,10 +66,6 @@ export async function createDiary(input: { title: string; content: string; topic
     updatedAt: new Date(),
   };
   await db.diaries.add(diary);
-  for (const topicId of input.topicIds) {
-    const topic = await db.topics.get(topicId);
-    if (topic) await db.topics.update(topicId, { diaryCount: topic.diaryCount + 1 } as any);
-  }
   return diary;
 }
 
@@ -89,10 +85,6 @@ export async function updateDiary(id: string, input: { title?: string; content?:
 export async function deleteDiary(id: string): Promise<void> {
   const diary = await db.diaries.get(id);
   if (!diary) return;
-  for (const topicId of (diary.topicIds || [])) {
-    const topic = await db.topics.get(topicId);
-    if (topic && topic.diaryCount > 0) await db.topics.update(topicId, { diaryCount: topic.diaryCount - 1 } as any);
-  }
   if (diary.analysisId) await db.analysisResults.delete(diary.analysisId);
   await db.diaries.delete(id);
 }
@@ -265,8 +257,9 @@ export async function deleteTopicCascade(id: string): Promise<void> {
     await db.insights.update(ins.id, { linkedTopicIds: (ins.linkedTopicIds || []).filter(tid => tid !== id) } as any);
   }
   const events = await db.events.where("topicId").equals(id).toArray();
+  // 事件保留，仅解除课题关联
   for (const event of events) {
-    await deleteEvent(event.id);
+    await db.events.update(event.id, { topicId: "" } as any);
   }
   await db.topics.delete(id);
 }

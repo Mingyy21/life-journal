@@ -1,25 +1,29 @@
 "use client";
 import { useState, useRef, useCallback } from "react";
-import { Calendar, Clock, Pencil, Trash2, Link2, ArrowUpRight, Lightbulb } from "lucide-react";
+import { Calendar, Clock, Pencil, Trash2, Link2, ArrowUpRight, Lightbulb, X } from "lucide-react";
 import type { Diary, Topic, Event } from "@/types";
 import { ClientDate } from "./ClientDate";
 import { EventBadge } from "./EventBadge";
+import EventSelector from "./EventSelector";
 
 interface Props {
   diary: Diary;
   topics: Topic[];
+  events: Event[];
   linkedEvent?: Event | null;
   onLinkEvent?: (eventId: string | null) => void;
   onUpgradeToEvent?: () => void;
   onExtractInsight?: (selectedText: string) => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onCreateEvent?: (input: { title: string; topicId: string }) => Promise<Event | null>;
 }
 
-export default function DiaryDetail({ diary, topics, linkedEvent, onLinkEvent, onUpgradeToEvent, onExtractInsight, onEdit, onDelete }: Props) {
+export default function DiaryDetail({ diary, topics, linkedEvent, events, onLinkEvent, onUpgradeToEvent, onCreateEvent, onExtractInsight, onEdit, onDelete }: Props) {
   const dts = (diary.topicIds || []).map(id => topics.find(t => t.id === id)).filter(Boolean) as Topic[];
   const contentRef = useRef<HTMLDivElement>(null);
   const [selection, setSelection] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [showEventSelector, setShowEventSelector] = useState(false);
 
   const handleMouseUp = useCallback(() => {
     setTimeout(() => {
@@ -71,7 +75,7 @@ export default function DiaryDetail({ diary, topics, linkedEvent, onLinkEvent, o
       {!linkedEvent && (onLinkEvent || onUpgradeToEvent) && (
         <div className="flex items-center gap-3 mb-4">
           {onLinkEvent && (
-            <button onClick={() => onLinkEvent(null)} className="text-xs text-calm-400 hover:text-primary-500 flex items-center gap-1">
+            <button onClick={() => setShowEventSelector(true)} className="text-xs text-calm-400 hover:text-primary-500 flex items-center gap-1">
               <Link2 className="w-3 h-3" /> 关联到事件
             </button>
           )}
@@ -83,7 +87,23 @@ export default function DiaryDetail({ diary, topics, linkedEvent, onLinkEvent, o
         </div>
       )}
 
-      <div ref={contentRef} onMouseUp={onExtractInsight ? handleMouseUp : undefined} className="text-calm-700 leading-relaxed whitespace-pre-wrap text-base select-text">
+      {showEventSelector && (
+        <div className="mb-4 relative z-10">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-calm-400">关联到事件</p>
+            <button onClick={() => setShowEventSelector(false)} className="text-calm-300 hover:text-calm-500"><X className="w-3.5 h-3.5" /></button>
+          </div>
+          <EventSelector
+            events={events}
+            topics={topics}
+            selectedEventId={null}
+            onChange={(eventId) => { onLinkEvent?.(eventId); setShowEventSelector(false); }}
+            onCreateEvent={async (input) => { const ev = await onCreateEvent?.(input); if (ev) { onLinkEvent?.(ev.id); setShowEventSelector(false); } return ev || null; }}
+          />
+        </div>
+      )}
+
+      <div ref={contentRef} onMouseUp={onExtractInsight ? handleMouseUp : undefined} onTouchEnd={onExtractInsight ? handleMouseUp : undefined} className="text-calm-700 leading-relaxed whitespace-pre-wrap text-base select-text">
         {diary.content}
       </div>
 

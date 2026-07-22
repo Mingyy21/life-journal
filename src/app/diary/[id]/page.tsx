@@ -172,9 +172,10 @@ export default function DiaryPage() {
       ) : (
         <>
           <DiaryDetail
-            diary={diary} topics={topics} linkedEvent={linkedEvent}
+            diary={diary} topics={topics} events={events} linkedEvent={linkedEvent}
             onLinkEvent={handleLinkEvent}
             onUpgradeToEvent={handleUpgradeToEvent}
+            onCreateEvent={handleCreateEvent}
             onExtractInsight={handleExtractInsight}
             onEdit={() => setEditing(true)}
             onDelete={handleDelete}

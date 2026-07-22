@@ -239,13 +239,56 @@ export default function TopicDetailPage() {
           <TopicDiaryList diaries={sortedDiaries} topics={allTopics} events={allEvents} />
         </>
       ) : activeTab === "intervention" ? (
-        <div className="bg-white rounded-2xl border border-calm-200 p-6 text-center">
-          <div className="max-w-xs mx-auto space-y-3">
-            <p className="text-xs font-medium text-calm-400 tracking-wider">AI 心理陪伴</p>
-            <p className="text-sm text-calm-500 leading-relaxed">
-              该功能正在开发中。<br />
-              当你在这个课题中积累了过多负面情绪时，<br />
-              AI 将在这里与你对话，帮助你梳理思绪。
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-calm-200 p-5">
+            <h3 className="text-sm font-serif font-semibold text-calm-900 mb-1">
+              与 AI 深入探讨「{topic?.name || "..."}」
+            </h3>
+            <p className="text-xs text-calm-400 mb-4">
+              复制提示词 → 到 DeepSeek 粘贴 → 基于你的记录进行深度对话
+            </p>
+
+            <div className="bg-calm-50 rounded-xl p-4 mb-4">
+              <pre className="text-xs text-calm-600 whitespace-pre-wrap leading-relaxed select-all">
+                {(() => {
+                  const recent = diaries.slice(0, 5);
+                  const ctx = recent.length > 0
+                    ? recent.map(d => `  · 《${d.title}》（${d.createdAt.toLocaleDateString()}）`).join("\n")
+                    : "  （暂无日记记录）";
+                  return `我正在使用「人生手记」记录我的生活。
+我想和你深入聊聊「${topic?.name || "..."}」这个课题。
+
+我最近的记录：
+${ctx}
+
+我想请你：
+1. 帮我分析我在这个课题上的情绪变化和认知模式
+2. 指出我可能存在的思维盲区
+3. 给我一些具体的建议`;
+                })()}
+              </pre>
+            </div>
+
+            <button
+              onClick={() => {
+                const recent = diaries.slice(0, 5);
+                const ctx = recent.length > 0
+                  ? recent.map(d => `  · 《${d.title}》（${d.createdAt.toLocaleDateString()}）`).join("\n")
+                  : "  （暂无日记记录）";
+                const prompt = `我正在使用「人生手记」记录我的生活。\n我想和你深入聊聊「${topic?.name || "..."}」这个课题。\n\n我最近的记录：\n${ctx}\n\n我想请你：\n1. 帮我分析我在这个课题上的情绪变化和认知模式\n2. 指出我可能存在的思维盲区\n3. 给我一些具体的建议`;
+                navigator.clipboard.writeText(prompt);
+                window.open("https://chat.deepseek.com", "_blank");
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-full bg-primary-600 text-white hover:bg-primary-700 transition-all active:scale-95"
+            >
+              复制提示词并打开 DeepSeek
+            </button>
+          </div>
+
+          <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4">
+            <p className="text-xs text-amber-700">
+              提示词已复制到剪贴板，在 DeepSeek 中粘贴即可开始对话。
+              你也可以直接访问 https://chat.deepseek.com 手动粘贴。
             </p>
           </div>
         </div>

@@ -1,0 +1,16 @@
+{
+  "name": "人生手记",
+  "short_name": "人生手记",
+  "description": "日记与人生管理工具 — 记录、理解、成长",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf9f7",
+  "theme_color": "#4ECDC4",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

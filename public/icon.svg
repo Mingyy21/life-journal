@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#4ECDC4"/>
+  <g transform="translate(256,256)">
+    <!-- 书页左边 -->
+    <path d="M-80,-120 L-80,120 Q-40,100 0,120 L0,-120 Q-40,-100 -80,-120Z" fill="white" opacity="0.95"/>
+    <!-- 书页右边 -->
+    <path d="M0,-120 L0,120 Q40,100 80,120 L80,-120 Q40,-100 0,-120Z" fill="white" opacity="0.85"/>
+    <!-- 书脊 -->
+    <rect x="-6" y="-115" width="12" height="230" rx="3" fill="#3BA99E"/>
+    <!-- 文字行 -->
+    <line x1="-45" y1="-60" x2="45" y2="-60" stroke="#2D8F85" stroke-width="6" stroke-linecap="round" opacity="0.3"/>
+    <line x1="-45" y1="-30" x2="45" y2="-30" stroke="#2D8F85" stroke-width="6" stroke-linecap="round" opacity="0.3"/>
+    <line x1="-45" y1="0" x2="45" y2="0" stroke="#2D8F85" stroke-width="6" stroke-linecap="round" opacity="0.3"/>
+    <line x1="-45" y1="30" x2="45" y2="30" stroke="#2D8F85" stroke-width="6" stroke-linecap="round" opacity="0.3"/>
+    <line x1="-45" y1="60" x2="25" y2="60" stroke="#2D8F85" stroke-width="6" stroke-linecap="round" opacity="0.3"/>
+  </g>
+</svg>

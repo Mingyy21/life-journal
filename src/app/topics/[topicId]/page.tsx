@@ -11,8 +11,7 @@ import EventCard from "@/components/EventCard";
 import InsightList from "@/components/InsightList";
 import { getCognitiveEvolution } from "@/hooks/useCognitiveEvolution";
 import type { EvolutionData } from "@/hooks/useCognitiveEvolution";
-import { db } from "@/lib/db";
-import { deleteInsight } from "@/lib/db";
+import { db, createInsight, deleteInsight } from "@/lib/db";
 import { useTopics, useTopicDiaries, useTopicEvents, useTopicInsights, useEvents, useAllDiaries, useDiaries } from "@/hooks/useData";
 import { useInit } from "@/components/InitProvider";
 import { useQueryClient } from "@tanstack/react-query";
@@ -42,6 +41,9 @@ export default function TopicDetailPage() {
   const [batchMode, setBatchMode] = useState(false);
   const [showBatchDialog, setShowBatchDialog] = useState(false);
   const [batchEventTitle, setBatchEventTitle] = useState("");
+  const [aiFeedback, setAiFeedback] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState("");
 
   // Cognitive evolution data (computed from diaries + analyses)
   const [evolutionData, setEvolutionData] = useState<EvolutionData | null>(null);
@@ -124,6 +126,29 @@ export default function TopicDetailPage() {
     diaries.forEach(d => { if (d.eventId) map.set(d.eventId, (map.get(d.eventId) || 0) + 1); });
     return map;
   }, [diaries]);
+
+  const handleSaveFeedback = async () => {
+    if (!aiFeedback.trim() || !topic) return;
+    setSaving(true);
+    try {
+      await createInsight({
+        title: `AI 对话：${topic.name}`,
+        content: aiFeedback.trim(),
+        linkedEventIds: [],
+        linkedTopicIds: [topicId],
+        sourceDiaryId: undefined,
+      });
+      setAiFeedback("");
+      setSavedMsg("已保存为感悟");
+      setTimeout(() => setSavedMsg(""), 2000);
+      qc.invalidateQueries({ queryKey: queryKeys.topicInsights(topicId) });
+      qc.invalidateQueries({ queryKey: queryKeys.insights });
+    } catch {
+      setSavedMsg("保存失败");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (!ready) return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="w-6 h-6 text-primary-400 animate-spin" /></div>;
   if (!topic) return <div className="text-center py-16"><p className="text-calm-400 text-sm">课题不存在</p><Link href="/topics" className="text-primary-500 text-sm mt-2 inline-block hover:underline">返回课题列表</Link></div>;
@@ -240,18 +265,19 @@ export default function TopicDetailPage() {
         </>
       ) : activeTab === "intervention" ? (
         <div className="space-y-4">
+          {/* ── 第一步：复制提示词去 DeepSeek ── */}
           <div className="bg-white rounded-2xl border border-calm-200 p-5">
             <h3 className="text-sm font-serif font-semibold text-calm-900 mb-1">
               与 AI 深入探讨「{topic?.name || "..."}」
             </h3>
             <p className="text-xs text-calm-400 mb-4">
-              复制提示词 → 到 DeepSeek 粘贴 → 基于你的记录进行深度对话
+              复制提示词 → 粘贴到 DeepSeek → 与 AI 对话
             </p>
 
             <div className="bg-calm-50 rounded-xl p-4 mb-4">
               <pre className="text-xs text-calm-600 whitespace-pre-wrap leading-relaxed select-all">
                 {(() => {
-                  const recent = diaries.slice(0, 5);
+                  const recent = diaries.slice(0, 8);
                   const ctx = recent.length > 0
                     ? recent.map(d => `  · 《${d.title}》（${d.createdAt.toLocaleDateString()}）`).join("\n")
                     : "  （暂无日记记录）";
@@ -271,12 +297,13 @@ ${ctx}
 
             <button
               onClick={() => {
-                const recent = diaries.slice(0, 5);
+                const recent = diaries.slice(0, 8);
                 const ctx = recent.length > 0
                   ? recent.map(d => `  · 《${d.title}》（${d.createdAt.toLocaleDateString()}）`).join("\n")
                   : "  （暂无日记记录）";
-                const prompt = `我正在使用「人生手记」记录我的生活。\n我想和你深入聊聊「${topic?.name || "..."}」这个课题。\n\n我最近的记录：\n${ctx}\n\n我想请你：\n1. 帮我分析我在这个课题上的情绪变化和认知模式\n2. 指出我可能存在的思维盲区\n3. 给我一些具体的建议`;
-                navigator.clipboard.writeText(prompt);
+                navigator.clipboard.writeText(
+                  `我正在使用「人生手记」记录我的生活。\n我想和你深入聊聊「${topic?.name || "..."}」这个课题。\n\n我最近的记录：\n${ctx}\n\n我想请你：\n1. 帮我分析我在这个课题上的情绪变化和认知模式\n2. 指出我可能存在的思维盲区\n3. 给我一些具体的建议`
+                );
                 window.open("https://chat.deepseek.com", "_blank");
               }}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-full bg-primary-600 text-white hover:bg-primary-700 transition-all active:scale-95"
@@ -285,11 +312,34 @@ ${ctx}
             </button>
           </div>
 
-          <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4">
-            <p className="text-xs text-amber-700">
-              提示词已复制到剪贴板，在 DeepSeek 中粘贴即可开始对话。
-              你也可以直接访问 https://chat.deepseek.com 手动粘贴。
+          {/* ── 第二步：把 AI 的回答贴回来 ── */}
+          <div className="bg-white rounded-2xl border border-calm-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-serif font-semibold text-calm-900">把 AI 的回答保存回来</h3>
+              <span className="text-xs text-primary-500">第 2 步</span>
+            </div>
+            <p className="text-xs text-calm-400 mb-3">
+              在 DeepSeek 聊完后，把它的回答复制回来粘贴到这里，保存为一条感悟。
             </p>
+
+            <textarea
+              value={aiFeedback}
+              onChange={e => setAiFeedback(e.target.value)}
+              placeholder="将 DeepSeek 的回答粘贴到这里..."
+              rows={6}
+              className="w-full px-3 py-2 text-xs border border-calm-200 rounded-xl outline-none focus:border-primary-300 resize-none mb-3"
+            />
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSaveFeedback}
+                disabled={!aiFeedback.trim() || saving}
+                className="px-5 py-2 text-xs font-medium rounded-full bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-40 transition-all active:scale-95"
+              >
+                {saving ? "保存中..." : "保存为感悟"}
+              </button>
+              {savedMsg && <span className="text-xs text-green-600">{savedMsg}</span>}
+            </div>
           </div>
         </div>
       ) : activeTab === "events" ? (

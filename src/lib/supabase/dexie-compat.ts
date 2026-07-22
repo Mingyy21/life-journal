@@ -27,9 +27,19 @@ function serializeDates(obj: Record<string, any>): Record<string, any> {
 }
 
 let _userId: string | null = null;
+let _authResolve: (() => void) | null = null;
+let _authReady = false;
 
 export function setUserId(uid: string | null) {
   _userId = uid;
+  if (uid && !_authReady) {
+    _authReady = true;
+    _authResolve?.();
+    _authResolve = null;
+  }
+  if (!uid) {
+    _authReady = false;
+  }
 }
 
 function userId(): string {
@@ -287,8 +297,17 @@ export const supabaseProxy = {
   },
 
   async open() {
-    // Supabase is connectionless, just check auth
-    if (!_userId) throw new Error("Not authenticated");
+    if (_userId) return;
+    // 等待 auth session 恢复（最多 8 秒）
+    if (!_authReady) {
+      await new Promise<void>((resolve) => {
+        _authResolve = resolve;
+        setTimeout(() => {
+          if (!_userId) resolve(); // 超时后也继续，让后续操作报更具体的错
+        }, 8000);
+      });
+    }
+    if (!_userId) throw new Error("请先登录");
   },
 
   close() { /* noop */ },

@@ -189,7 +189,7 @@ class SupabaseCollection<T extends { id: string }> {
   }
 
   sortBy(key: string): Promise<T[]> {
-    return this.clone({ orderCol: key, orderAsc: true }).toArray();
+    return this.clone({ orderCol: key, orderAsc: this.orderAsc }).toArray();
   }
 }
 

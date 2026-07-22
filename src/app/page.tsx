@@ -37,8 +37,10 @@ export default function HomePage() {
   const [patternAlerts, setPatternAlerts] = useState<PatternAlertData[]>([]);
 
   const loadEvents = useCallback(async () => {
-    const all = await db.events.orderBy("createdAt").reverse().toArray();
-    setEvents(all);
+    try {
+      const all = await db.events.orderBy("createdAt").reverse().toArray();
+      setEvents(all);
+    } catch { /* 事件加载可选，不阻塞页面 */ }
   }, []);
 
   const suggestion = useSuggestEvent(diaries, topics);
@@ -69,11 +71,11 @@ export default function HomePage() {
 
   const handleTopicSelect = (id: string | null) => {
     setSelectedTopicId(id);
-    loadData({
-      dateFrom: dayStart(selectedDate),
-      dateTo: dayEnd(selectedDate),
-      topicId: id || undefined,
-    });
+    if (id) {
+      loadData({ topicId: id });
+    } else {
+      refreshWithFilter(selectedDate, null);
+    }
   };
 
   const handleSave = async (input: { title: string; content: string; topicIds: string[]; eventId: string | null }) => {

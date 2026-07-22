@@ -11,7 +11,7 @@ import InsightForm from "@/components/InsightForm";
 import DailyReviewBanner from "@/components/DailyReviewBanner";
 import { useDiary } from "@/hooks/useDiary";
 import { db } from "@/lib/db";
-import { createInsight } from "@/lib/db";
+import { createInsight, ensureDb } from "@/lib/db";
 import type { Diary, AnalysisResult, Event } from "@/types";
 
 export default function DiaryPage() {
@@ -31,6 +31,7 @@ export default function DiaryPage() {
   const [extractedText, setExtractedText] = useState("");
   const [showInsightForm, setShowInsightForm] = useState(false);
   const [todayDiaryCount, setTodayDiaryCount] = useState(0);
+  const [pageError, setPageError] = useState<string | null>(null);
 
   const loadDiary = async () => {
     const d = await db.diaries.get(diaryId);
@@ -43,17 +44,19 @@ export default function DiaryPage() {
   };
 
   const loadEvents = useCallback(async () => {
-    const all = await db.events.orderBy("createdAt").reverse().toArray();
-    setEvents(all);
-    // 统计今天日记数
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-    const todayDiaries = await db.diaries.where("createdAt").between(todayStart, todayEnd, true, true).toArray();
-    setTodayDiaryCount(todayDiaries.length);
+    try {
+      const all = await db.events.orderBy("createdAt").reverse().toArray();
+      setEvents(all);
+      // 统计今天日记数
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+      const todayDiaries = await db.diaries.where("createdAt").between(todayStart, todayEnd, true, true).toArray();
+      setTodayDiaryCount(todayDiaries.length);
+    } catch { /* 非关键数据，静默失败 */ }
   }, []);
 
   useEffect(() => {
-    async function init() { setLoading(true); await Promise.all([loadDiary(), loadEvents()]); setLoading(false); }
+    async function init() { setLoading(true); try { await ensureDb(); await Promise.all([loadDiary(), loadEvents()]); } catch (e) { setPageError(e instanceof Error ? e.message : "加载失败"); } setLoading(false); }
     init();
   }, [diaryId, getDiaryAnalysis, loadEvents]);
 
@@ -149,6 +152,7 @@ export default function DiaryPage() {
   };
 
   if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="w-6 h-6 text-primary-400 animate-spin" /></div>;
+  if (pageError) return <div className="text-center py-16"><p className="text-red-400 text-sm">{pageError}</p><Link href="/" className="text-primary-500 text-sm mt-2 inline-block hover:underline">返回首页</Link></div>;
   if (!diary) return <div className="text-center py-16"><p className="text-calm-400 text-sm">日记不存在</p><Link href="/" className="text-primary-500 text-sm mt-2 inline-block hover:underline">返回首页</Link></div>;
 
   return (

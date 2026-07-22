@@ -40,17 +40,13 @@ export const DEFAULT_TOPICS: Topic[] = [
 // ── 初始化 ──
 
 export async function initDefaultData(): Promise<void> {
-  const domainCount = await db.lifeDomains.count();
-  if (domainCount === 0) {
-    for (const d of DEFAULT_LIFE_DOMAINS) {
-      await db.lifeDomains.add(d);
-    }
+  for (const d of DEFAULT_LIFE_DOMAINS) {
+    const existing = await db.lifeDomains.get(d.id);
+    if (!existing) await db.lifeDomains.add(d);
   }
-  const topicCount = await db.topics.count();
-  if (topicCount === 0) {
-    for (const t of DEFAULT_TOPICS) {
-      await db.topics.add(t);
-    }
+  for (const t of DEFAULT_TOPICS) {
+    const existing = await db.topics.get(t.id);
+    if (!existing) await db.topics.add(t);
   }
 }
 

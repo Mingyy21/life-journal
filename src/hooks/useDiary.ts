@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import type { Diary, Topic, LifeDomain, AnalysisResult } from "@/types";
 import { createDiary, updateDiary, deleteDiary, listDiaries, saveAnalysis, getAnalysis, ensureDb } from "@/lib/db";
 import { db } from "@/lib/db";
+import { useAuth } from "./useAuth";
 
 export function useDiary() {
   const [diaries, setDiaries] = useState<Diary[]>([]);
@@ -56,6 +57,21 @@ export function useDiary() {
 
   // 组件挂载时自动初始化（不阻塞渲染）
   useEffect(() => { init(); }, [init]);
+
+  // 登录态恢复后自动重试
+  const { userId: authUserId, loading: authLoading } = useAuth();
+  const prevAuthRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // authUserId 从 null→有值，且之前有错误 → 自动重试
+    if (!authLoading && authUserId && error && authUserId !== prevAuthRef.current) {
+      prevAuthRef.current = authUserId;
+      retry();
+    }
+    if (!authLoading && authUserId) {
+      prevAuthRef.current = authUserId;
+    }
+  }, [authUserId, authLoading, error]);
 
   const addDiary = useCallback(async (input: { title: string; content: string; topicIds: string[]; eventId: string | null }) => {
     const diary = await createDiary(input);

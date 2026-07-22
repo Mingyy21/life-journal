@@ -97,7 +97,7 @@ export default function DiaryEditor({ domains, topics, events, initialValues, on
         />
       </div>
 
-      <div className="flex items-center justify-between pt-4 mt-2 border-t border-calm-100 md:static md:bg-transparent fixed bottom-0 left-0 right-0 bg-white border-t border-calm-200 px-4 py-3 md:px-0 md:py-0 md:border-t-0 md:border-0 z-30" style={{ paddingBottom: `calc(12px + env(safe-area-inset-bottom, 0px))` }}>
+      <div className="flex items-center justify-between pt-4 mt-2 border-t border-calm-100 md:static md:bg-transparent fixed bottom-0 left-0 right-0 bg-white border-t border-calm-200 px-4 py-3 md:px-0 md:py-0 md:border-t-0 md:border-0 z-50 md:z-30" style={{ paddingBottom: `calc(12px + env(safe-area-inset-bottom, 0px))` }}>
         <button onClick={onCancel} className="flex items-center gap-1 px-3 py-2.5 text-sm text-calm-400 hover:text-calm-600 active:scale-95 transition-transform"><X className="w-4 h-4" /> 取消</button>
         <button onClick={handleSave} disabled={!content.trim() || saving}
           className="flex items-center gap-1.5 px-5 py-2 bg-primary-600 text-white rounded-full text-sm font-medium hover:bg-primary-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95">

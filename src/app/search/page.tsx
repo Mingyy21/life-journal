@@ -7,7 +7,7 @@ import SearchBar from "@/components/SearchBar";
 import SearchResults from "@/components/SearchResults";
 import SearchHistory from "@/components/SearchHistory";
 import { useSearch } from "@/hooks/useSearch";
-import { db } from "@/lib/db";
+import { db, ensureDb } from "@/lib/db";
 import type { Topic } from "@/types";
 
 export default function SearchPage() {
@@ -16,7 +16,7 @@ export default function SearchPage() {
   const [topics, setTopics] = useState<Topic[]>([]);
 
   useEffect(() => {
-    db.topics.toArray().then(setTopics).catch(() => {});
+    ensureDb().then(() => db.topics.toArray().then(setTopics)).catch(() => {});
   }, []);
 
   return (

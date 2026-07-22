@@ -1,93 +1,49 @@
 "use client";
-import { useState, useCallback, useEffect, useRef } from "react";
-import type { Diary, Topic, LifeDomain, AnalysisResult } from "@/types";
-import { createDiary, updateDiary, deleteDiary, listDiaries, saveAnalysis, getAnalysis, ensureDb } from "@/lib/db";
+import { useState, useCallback } from "react";
+import type { Diary, Topic, LifeDomain, AnalysisResult, DiaryFilter } from "@/types";
+import { createDiary, updateDiary, deleteDiary, listDiaries, saveAnalysis, getAnalysis } from "@/lib/db";
 import { db } from "@/lib/db";
-import { useAuth } from "./useAuth";
+import { useInit } from "@/components/InitProvider";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys, useTopics, useDomains, useDiaries } from "./useData";
 
 export function useDiary() {
-  const [diaries, setDiaries] = useState<Diary[]>([]);
-  const [domains, setDomains] = useState<LifeDomain[]>([]);
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const initRef = useRef(false);
+  const { ready, error: initError, retry } = useInit();
+  const [filter, setFilter] = useState<DiaryFilter | undefined>();
+  const qc = useQueryClient();
 
-  const loadData = useCallback(async (filter?: { domainId?: string; topicId?: string; eventId?: string; keyword?: string; dateFrom?: Date; dateTo?: Date }) => {
-    setLoading(true);
-    try {
-      const [dl, dl2, tl] = await Promise.all([
-        listDiaries(filter),
-        db.lifeDomains.toArray(),
-        db.topics.toArray(),
-      ]);
-      setDiaries(dl);
-      setDomains(dl2);
-      setTopics(tl);
-    } catch (err) { console.error("加载失败:", err); }
-    finally { setLoading(false); }
+  const diariesQuery = useDiaries(filter);
+  const topicsQuery = useTopics();
+  const domainsQuery = useDomains();
+
+  const diaries = diariesQuery.data || [];
+  const topics = topicsQuery.data || [];
+  const domains = domainsQuery.data || [];
+  const loading = !ready || diariesQuery.isLoading;
+  const error = initError;
+
+  const loadData = useCallback((f?: DiaryFilter) => {
+    setFilter(f);
   }, []);
-
-  const init = useCallback(async () => {
-    if (initRef.current) return;
-    initRef.current = true;
-    try {
-      await ensureDb();
-      setReady(true);
-      await loadData();
-    } catch (err) {
-      console.error("数据库初始化失败:", err);
-      setError(err instanceof Error ? err.message : "数据库初始化失败");
-    }
-  }, [loadData]);
-
-  const retry = useCallback(async () => {
-    setError(null);
-    initRef.current = false;
-    try {
-      await ensureDb();
-      setReady(true);
-      await loadData();
-    } catch (err) {
-      console.error("数据库初始化失败:", err);
-      setError(err instanceof Error ? err.message : "数据库初始化失败");
-    }
-  }, [loadData]);
-
-  // 组件挂载时自动初始化（不阻塞渲染）
-  useEffect(() => { init(); }, [init]);
-
-  // 登录态恢复后自动重试
-  const { userId: authUserId, loading: authLoading } = useAuth();
-  const prevAuthRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    // authUserId 从 null→有值，且之前有错误 → 自动重试
-    if (!authLoading && authUserId && error && authUserId !== prevAuthRef.current) {
-      prevAuthRef.current = authUserId;
-      retry();
-    }
-    if (!authLoading && authUserId) {
-      prevAuthRef.current = authUserId;
-    }
-  }, [authUserId, authLoading, error]);
 
   const addDiary = useCallback(async (input: { title: string; content: string; topicIds: string[]; eventId: string | null }) => {
     const diary = await createDiary(input);
-    await loadData();
+    qc.invalidateQueries({ queryKey: queryKeys.diaries() });
     return diary;
-  }, [loadData]);
+  }, [qc]);
 
   const editDiary = useCallback(async (id: string, input: { title?: string; content?: string; topicIds?: string[]; eventId?: string | null }) => {
-    await updateDiary(id, input);
-    await loadData();
-  }, [loadData]);
+    await updateDiary(id, input as any);
+    qc.invalidateQueries({ queryKey: queryKeys.diaries() });
+    if (input.eventId !== undefined) {
+      qc.invalidateQueries({ queryKey: queryKeys.events });
+    }
+  }, [qc]);
 
   const removeDiary = useCallback(async (id: string) => {
     await deleteDiary(id);
-    await loadData();
-  }, [loadData]);
+    qc.invalidateQueries({ queryKey: queryKeys.diaries() });
+  }, [qc]);
 
   const analyzeDiaryEntry = useCallback(async (diaryId: string): Promise<AnalysisResult> => {
     const diary = await db.diaries.get(diaryId);
@@ -111,9 +67,10 @@ export function useDiary() {
       followUpQuestion: analysis.followUpQuestion, createdAt: new Date(),
     };
     await saveAnalysis(result);
-    await loadData();
+    qc.invalidateQueries({ queryKey: queryKeys.diaries() });
+    qc.invalidateQueries({ queryKey: queryKeys.analysis(diaryId) });
     return result;
-  }, [loadData]);
+  }, [qc]);
 
   const getDiaryAnalysis = useCallback(async (diaryId: string) => getAnalysis(diaryId), []);
 

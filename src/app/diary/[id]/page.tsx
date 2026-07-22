@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Sparkles, AlertTriangle } from "lucide-react";
 import Link from "next/link";
@@ -10,6 +10,7 @@ import HistoryTrigger from "@/components/HistoryTrigger";
 import InsightForm from "@/components/InsightForm";
 import DailyReviewBanner from "@/components/DailyReviewBanner";
 import { useDiary } from "@/hooks/useDiary";
+import { useEvents } from "@/hooks/useData";
 import { db } from "@/lib/db";
 import { createInsight, ensureDb } from "@/lib/db";
 import type { Diary, AnalysisResult, Event } from "@/types";
@@ -18,9 +19,9 @@ export default function DiaryPage() {
   const params = useParams(); const router = useRouter();
   const diaryId = params.id as string;
   const { domains, topics, analyzeDiaryEntry, getDiaryAnalysis, editDiary, removeDiary } = useDiary();
+  const { data: events = [], refetch: refetchEvents } = useEvents();
   const [diary, setDiary] = useState<Diary | null>(null);
   const [linkedEvent, setLinkedEvent] = useState<Event | null>(null);
-  const [events, setEvents] = useState<Event[]>([]);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
@@ -43,22 +44,10 @@ export default function DiaryPage() {
     if (d?.hasAnalysis) { const a = await getDiaryAnalysis(diaryId); setAnalysis(a || null); }
   };
 
-  const loadEvents = useCallback(async () => {
-    try {
-      const all = await db.events.orderBy("createdAt").reverse().toArray();
-      setEvents(all);
-      // 统计今天日记数
-      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-      const todayDiaries = await db.diaries.where("createdAt").between(todayStart, todayEnd, true, true).toArray();
-      setTodayDiaryCount(todayDiaries.length);
-    } catch { /* 非关键数据，静默失败 */ }
-  }, []);
-
   useEffect(() => {
-    async function init() { setLoading(true); try { await ensureDb(); await Promise.all([loadDiary(), loadEvents()]); } catch (e) { setPageError(e instanceof Error ? e.message : "加载失败"); } setLoading(false); }
+    async function init() { setLoading(true); try { await ensureDb(); await loadDiary(); const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0); const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999); const todayDiaries = await db.diaries.where("createdAt").between(todayStart, todayEnd, true, true).toArray(); setTodayDiaryCount(todayDiaries.length); } catch (e) { setPageError(e instanceof Error ? e.message : "加载失败"); } setLoading(false); }
     init();
-  }, [diaryId, getDiaryAnalysis, loadEvents]);
+  }, [diaryId, getDiaryAnalysis]);
 
   const handleAnalyze = async () => {
     if (!diary) return;
@@ -88,7 +77,7 @@ export default function DiaryPage() {
       createdAt: new Date(), updatedAt: new Date(),
     });
     await editDiary(diaryId, { eventId });
-    await Promise.all([loadDiary(), loadEvents()]);
+    await Promise.all([loadDiary(), refetchEvents()]);
   };
 
   const handleEditSave = async (input: { title: string; content: string; topicIds: string[]; eventId: string | null }) => {
@@ -100,7 +89,7 @@ export default function DiaryPage() {
   const handleCreateEvent = async (input: { title: string; topicId: string }): Promise<Event | null> => {
     const eventId = crypto.randomUUID();
     await db.events.add({ id: eventId, topicId: input.topicId, title: input.title, description: "", resolutionStatus: "unresolved", createdAt: new Date(), updatedAt: new Date() });
-    await loadEvents();
+    await refetchEvents();
     const created = await db.events.get(eventId);
     return created || null;
   };

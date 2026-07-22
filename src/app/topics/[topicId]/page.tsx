@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, FolderOpen, Plus, Lightbulb, Flag } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
@@ -11,8 +11,12 @@ import EventCard from "@/components/EventCard";
 import InsightList from "@/components/InsightList";
 import { getCognitiveEvolution } from "@/hooks/useCognitiveEvolution";
 import type { EvolutionData } from "@/hooks/useCognitiveEvolution";
-import { db, ensureDb } from "@/lib/db";
+import { db } from "@/lib/db";
 import { deleteInsight } from "@/lib/db";
+import { useTopics, useTopicDiaries, useTopicEvents, useTopicInsights, useEvents, useAllDiaries, useDiaries } from "@/hooks/useData";
+import { useInit } from "@/components/InitProvider";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/hooks/useData";
 import type { Diary, Topic, Event, Insight } from "@/types";
 
 const RESOLUTION_LABELS: Record<string, string> = { unresolved: "未解决", in_progress: "解决中", avoiding: "逃避中", accepted: "已接纳", resolved: "已解决" };
@@ -20,51 +24,39 @@ const RESOLUTION_LABELS: Record<string, string> = { unresolved: "未解决", in_
 export default function TopicDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const qc = useQueryClient();
   const topicId = params.topicId as string;
-  const [topic, setTopic] = useState<Topic | null>(null);
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [diaries, setDiaries] = useState<Diary[]>([]);
-  const [topicEvents, setTopicEvents] = useState<Event[]>([]);
-  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const { ready } = useInit();
+
+  const { data: allTopics = [] } = useTopics();
+  const topic = allTopics.find(t => t.id === topicId) || null;
+  const { data: diaries = [] } = useTopicDiaries(topicId);
+  const { data: topicEvents = [] } = useTopicEvents(topicId);
+  const { data: allEvents = [] } = useEvents();
+  const { data: topicInsights = [] } = useTopicInsights(topicId);
+  const { data: allDiaries = [] } = useAllDiaries();
+
   const [sort, setSort] = useState<SortMode>("recent");
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"list" | "events" | "evolution" | "insights">("list");
-  const [evolutionData, setEvolutionData] = useState<EvolutionData | null>(null);
-  const [eventStatusCounts, setEventStatusCounts] = useState<Record<string, number>>({});
+  const [activeTab, setActiveTab] = useState<"list" | "events" | "evolution" | "insights" | "intervention">("list");
   const [selectedDiaryIds, setSelectedDiaryIds] = useState<Set<string>>(new Set());
   const [batchMode, setBatchMode] = useState(false);
-  const [topicInsights, setTopicInsights] = useState<Insight[]>([]);
+  const [showBatchDialog, setShowBatchDialog] = useState(false);
+  const [batchEventTitle, setBatchEventTitle] = useState("");
 
-  useEffect(() => {
-    async function load() {
-      await ensureDb();
-      const [t, ts, allDiaries, allAnalyses, topicEvs, allEvs, allInsights] = await Promise.all([
-        db.topics.get(topicId),
-        db.topics.toArray(),
-        db.diaries.toArray(),
-        db.analysisResults.toArray(),
-        db.events.where("topicId").equals(topicId).toArray(),
-        db.events.toArray(),
-        db.insights.orderBy("createdAt").reverse().toArray(),
-      ]);
-      setTopic(t || null);
-      setTopics(ts);
-      const filtered = allDiaries.filter(d => (d.topicIds || []).includes(topicId));
-      setDiaries(filtered);
-      setTopicEvents(topicEvs);
-      setAllEvents(allEvs);
-      setTopicInsights(allInsights.filter(i => (i.linkedTopicIds || []).includes(topicId)));
-      const aMap = new Map(allAnalyses.map(a => [a.diaryId, a]));
-      setEvolutionData(getCognitiveEvolution(filtered, aMap));
+  // Cognitive evolution data (computed from diaries + analyses)
+  const [evolutionData, setEvolutionData] = useState<EvolutionData | null>(null);
+  // Load analyses for evolution on mount
+  useMemo(async () => {
+    const allAnalyses = await db.analysisResults.toArray();
+    const aMap = new Map(allAnalyses.map(a => [a.diaryId, a]));
+    setEvolutionData(getCognitiveEvolution(diaries, aMap));
+  }, [diaries]);
 
-      const ec: Record<string, number> = {};
-      topicEvs.forEach(e => { ec[e.resolutionStatus] = (ec[e.resolutionStatus] || 0) + 1; });
-      setEventStatusCounts(ec);
-
-      setLoading(false);
-    }
-    load();
-  }, [topicId]);
+  const eventStatusCounts = useMemo(() => {
+    const ec: Record<string, number> = {};
+    topicEvents.forEach(e => { ec[e.resolutionStatus] = (ec[e.resolutionStatus] || 0) + 1; });
+    return ec;
+  }, [topicEvents]);
 
   const sortedDiaries = useMemo(() => {
     const copy = [...diaries];
@@ -79,12 +71,18 @@ export default function TopicDetailPage() {
     }
   }, [diaries, sort]);
 
-  // 未归类日记（无eventId，近3天）
   const uncategorizedDiaries = useMemo(() => {
     const threeDaysAgo = new Date();
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
     return diaries.filter(d => !d.eventId && d.createdAt >= threeDaysAgo);
   }, [diaries]);
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: queryKeys.topicDiaries(topicId) });
+    qc.invalidateQueries({ queryKey: queryKeys.topicEvents(topicId) });
+    qc.invalidateQueries({ queryKey: queryKeys.events });
+    qc.invalidateQueries({ queryKey: queryKeys.diaries() });
+  };
 
   const handleBatchLink = async (eventId: string) => {
     for (const id of selectedDiaryIds) {
@@ -92,28 +90,27 @@ export default function TopicDetailPage() {
     }
     setSelectedDiaryIds(new Set());
     setBatchMode(false);
-    // Reload
-    const allDiaries = await db.diaries.toArray();
-    setDiaries(allDiaries.filter(d => (d.topicIds || []).includes(topicId)));
-    const evs = await db.events.where("topicId").equals(topicId).toArray();
-    setTopicEvents(evs);
-    const allEvs = await db.events.toArray();
-    setAllEvents(allEvs);
+    invalidate();
   };
 
-  const handleCreateAndLink = async () => {
+  const handleCreateAndLink = async (title: string) => {
     if (selectedDiaryIds.size === 0) return;
-    const firstDiary = diaries.find(d => selectedDiaryIds.has(d.id));
     const eventId = crypto.randomUUID();
     await db.events.add({
       id: eventId, topicId,
-      title: firstDiary ? firstDiary.title : "新建事件",
+      title: title.trim() || "新建事件",
       description: "",
       resolutionStatus: "unresolved",
       createdAt: new Date(), updatedAt: new Date(),
     });
     await handleBatchLink(eventId);
     router.push(`/events/${eventId}`);
+  };
+
+  const openBatchDialog = () => {
+    const firstDiary = diaries.find(d => selectedDiaryIds.has(d.id));
+    setBatchEventTitle(firstDiary?.title || "新建事件");
+    setShowBatchDialog(true);
   };
 
   const toggleDiary = (id: string) => {
@@ -128,7 +125,7 @@ export default function TopicDetailPage() {
     return map;
   }, [diaries]);
 
-  if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="w-6 h-6 text-primary-400 animate-spin" /></div>;
+  if (!ready) return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="w-6 h-6 text-primary-400 animate-spin" /></div>;
   if (!topic) return <div className="text-center py-16"><p className="text-calm-400 text-sm">课题不存在</p><Link href="/topics" className="text-primary-500 text-sm mt-2 inline-block hover:underline">返回课题列表</Link></div>;
 
   return (
@@ -153,7 +150,6 @@ export default function TopicDetailPage() {
         </div>
       </div>
 
-      {/* Tab switcher */}
       <div className="flex gap-1 bg-calm-50 rounded-xl p-1">
         <button onClick={() => setActiveTab("list")}
           className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
@@ -179,11 +175,16 @@ export default function TopicDetailPage() {
           }`}>
           感悟 ({topicInsights.length})
         </button>
+        <button onClick={() => setActiveTab("intervention")}
+          className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            activeTab === "intervention" ? "bg-calm-800 text-white shadow-sm" : "text-calm-400 hover:text-calm-600"
+          }`}>
+          AI 干预
+        </button>
       </div>
 
       {activeTab === "list" ? (
         <>
-          {/* 未归类日记批量整理 */}
           {uncategorizedDiaries.length > 0 && (
             <div className="bg-amber-50 rounded-2xl border border-amber-100 p-4">
               <div className="flex items-center justify-between mb-3">
@@ -221,7 +222,7 @@ export default function TopicDetailPage() {
                           <option key={ev.id} value={ev.id}>{ev.title}</option>
                         ))}
                       </select>
-                      <button onClick={handleCreateAndLink}
+                      <button onClick={openBatchDialog}
                         className="flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors">
                         <Plus className="w-3 h-3" /> 新建事件并归入
                       </button>
@@ -235,8 +236,19 @@ export default function TopicDetailPage() {
           )}
 
           <SortSelector value={sort} onChange={setSort} />
-          <TopicDiaryList diaries={sortedDiaries} topics={topics} events={allEvents} />
+          <TopicDiaryList diaries={sortedDiaries} topics={allTopics} events={allEvents} />
         </>
+      ) : activeTab === "intervention" ? (
+        <div className="bg-white rounded-2xl border border-calm-200 p-6 text-center">
+          <div className="max-w-xs mx-auto space-y-3">
+            <p className="text-xs font-medium text-calm-400 tracking-wider">AI 心理陪伴</p>
+            <p className="text-sm text-calm-500 leading-relaxed">
+              该功能正在开发中。<br />
+              当你在这个课题中积累了过多负面情绪时，<br />
+              AI 将在这里与你对话，帮助你梳理思绪。
+            </p>
+          </div>
+        </div>
       ) : activeTab === "events" ? (
         <div className="space-y-2">
           {topicEvents.length === 0 ? (
@@ -251,16 +263,41 @@ export default function TopicDetailPage() {
         <div>
           <InsightList
             insights={topicInsights}
-            topics={topics}
+            topics={allTopics}
             events={allEvents}
             onDeleteInsight={async (id) => {
               await deleteInsight(id);
-              setTopicInsights(prev => prev.filter(i => i.id !== id));
+              qc.invalidateQueries({ queryKey: queryKeys.topicInsights(topicId) });
+              qc.invalidateQueries({ queryKey: queryKeys.insights });
             }}
           />
         </div>
       ) : (
         evolutionData && <CognitiveStageChart points={evolutionData.points} />
+      )}
+
+      {/* 批量创建事件命名弹窗 */}
+      {showBatchDialog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-popup w-full max-w-sm p-6 animate-scale-in">
+            <h3 className="text-base font-serif font-semibold text-calm-900 mb-4">新建事件</h3>
+            <input
+              type="text" value={batchEventTitle}
+              onChange={e => setBatchEventTitle(e.target.value)}
+              placeholder="输入事件名称"
+              autoFocus
+              className="w-full px-4 py-2.5 text-sm border border-calm-200 rounded-lg outline-none focus:border-primary-300 mb-4"
+              onKeyDown={e => { if (e.key === "Enter" && batchEventTitle.trim()) { setShowBatchDialog(false); handleCreateAndLink(batchEventTitle); } }}
+            />
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={() => setShowBatchDialog(false)}
+                className="px-4 py-2 text-xs font-medium rounded-full bg-calm-50 text-calm-500 hover:bg-calm-100">取消</button>
+              <button onClick={() => { setShowBatchDialog(false); handleCreateAndLink(batchEventTitle); }}
+                disabled={!batchEventTitle.trim()}
+                className="px-4 py-2 text-xs font-medium rounded-full bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-40">确认创建</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

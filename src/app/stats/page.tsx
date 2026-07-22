@@ -1,109 +1,128 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, TrendingUp, BookOpen, PieChart, Trophy, BarChart3 } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
-import { db, ensureDb } from "@/lib/db";
+import { db } from "@/lib/db";
 import EmotionPetalChart from "@/components/EmotionPetalChart";
 import TrendReportCard, { type TrendCardReport } from "@/components/TrendReportCard";
 import { aggregateWeeklyEmotions } from "@/hooks/useWeeklyEmotions";
 import { detectGrowthMilestones, type GrowthMilestone } from "@/lib/pattern-store";
-import type { Diary, Topic, AnalysisResult, Event, Insight, EmotionLabels } from "@/types";
+import { useTopics, useAllDiaries, useEvents, useInsights } from "@/hooks/useData";
+import { useInit } from "@/components/InitProvider";
+import type { AnalysisResult } from "@/types";
 
 function formatDate(d: Date) { return `${d.getMonth() + 1}/${d.getDate()}`; }
 
 export default function StatsPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [diaries, setDiaries] = useState<Diary[]>([]);
-  const [topics, setTopics] = useState<Topic[]>([]);
+  const { ready } = useInit();
   const [analyses, setAnalyses] = useState<AnalysisResult[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [weeklyEmotions, setWeeklyEmotions] = useState<EmotionLabels | null>(null);
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [trendReports, setTrendReports] = useState<Record<string, { loading: boolean; report: TrendCardReport | null; error: string | null }>>({});
-  const [hasData, setHasData] = useState({ weekly: false, monthly: false, yearly: false });
+  const [analysesLoading, setAnalysesLoading] = useState(true);
   const [milestones, setMilestones] = useState<GrowthMilestone[]>([]);
+  const [trendReports, setTrendReports] = useState<Record<string, { loading: boolean; report: TrendCardReport | null; error: string | null }>>({});
 
+  const { data: diaries = [], isLoading: diariesLoading } = useAllDiaries();
+  const { data: topics = [], isLoading: topicsLoading } = useTopics();
+  const { data: events = [], isLoading: eventsLoading } = useEvents();
+  const { data: insights = [], isLoading: insightsLoading } = useInsights();
+
+  // 分析结果没有在 useData 中提供 hook，手动加载一次
   useEffect(() => {
-    async function load() {
-      await ensureDb();
-      const [ds, ts, as, es, ins] = await Promise.all([
-        db.diaries.toArray(), db.topics.toArray(), db.analysisResults.toArray(), db.events.toArray(),
-        db.insights.orderBy("createdAt").reverse().toArray(),
-      ]);
-      setDiaries(ds.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()));
-      setTopics(ts);
-      setAnalyses(as);
-      setEvents(es);
-      setInsights(ins);
-      const aMap = new Map(as.map(a => [a.diaryId, a]));
-      setWeeklyEmotions(aggregateWeeklyEmotions(ds, aMap));
-
-      // 检测成长里程碑（异步，不阻塞UI）
-      detectGrowthMilestones().then(setMilestones).catch(() => {});
-
-      // 检查各时间范围是否有数据
-      const now = new Date();
-      const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay() + 1); weekStart.setHours(0,0,0,0);
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const yearStart = new Date(now.getFullYear(), 0, 1);
-      setHasData({
-        weekly: ds.some(d => d.createdAt >= weekStart),
-        monthly: ds.some(d => d.createdAt >= monthStart),
-        yearly: ds.some(d => d.createdAt >= yearStart),
-      });
-
-      setLoading(false);
-    }
-    load();
+    db.analysisResults.toArray()
+      .then(setAnalyses)
+      .catch(() => {})
+      .finally(() => setAnalysesLoading(false));
   }, []);
 
-  if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-6 h-6 border-2 border-primary-300 border-t-transparent rounded-full animate-spin" /></div>;
+  // 检测成长里程碑（异步，不阻塞UI）
+  useEffect(() => {
+    detectGrowthMilestones().then(setMilestones).catch(() => {});
+  }, []);
+
+  const loading = !ready || diariesLoading || topicsLoading || eventsLoading || insightsLoading || analysesLoading;
+
+  // ── 派生状态（useMemo） ──
+
+  // 本周情绪花瓣
+  const weeklyEmotions = useMemo(() => {
+    if (diaries.length === 0 || analyses.length === 0) return null;
+    const aMap = new Map(analyses.map(a => [a.diaryId, a]));
+    return aggregateWeeklyEmotions(diaries, aMap);
+  }, [diaries, analyses]);
+
+  // 各时间范围是否有数据
+  const hasData = useMemo(() => {
+    const now = new Date();
+    const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay() + 1); weekStart.setHours(0, 0, 0, 0);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    return {
+      weekly: diaries.some(d => d.createdAt >= weekStart),
+      monthly: diaries.some(d => d.createdAt >= monthStart),
+      yearly: diaries.some(d => d.createdAt >= yearStart),
+    };
+  }, [diaries]);
 
   // 写作频率（按天）
-  const freqByDay: Record<string, number> = {};
-  diaries.forEach(d => { const k = d.createdAt.toISOString().slice(0, 10); freqByDay[k] = (freqByDay[k] || 0) + 1; });
-  const freqEntries = Object.entries(freqByDay).sort((a, b) => a[0].localeCompare(b[0]));
-  const maxFreq = Math.max(1, ...Object.values(freqByDay));
-  const totalWords = diaries.reduce((s, d) => s + d.wordCount, 0);
-  const avgWords = diaries.length > 0 ? Math.round(totalWords / diaries.length) : 0;
+  const { freqEntries, maxFreq } = useMemo(() => {
+    const fbd: Record<string, number> = {};
+    diaries.forEach(d => { const k = d.createdAt.toISOString().slice(0, 10); fbd[k] = (fbd[k] || 0) + 1; });
+    return {
+      freqEntries: Object.entries(fbd).sort((a, b) => a[0].localeCompare(b[0])),
+      maxFreq: Math.max(1, ...Object.values(fbd)),
+    };
+  }, [diaries]);
+
+  const totalWords = useMemo(() => diaries.reduce((s, d) => s + d.wordCount, 0), [diaries]);
+  const avgWords = useMemo(() => diaries.length > 0 ? Math.round(totalWords / diaries.length) : 0, [diaries, totalWords]);
 
   // 情绪趋势（从分析结果中提取）
-  const analysisMap = new Map(analyses.map(a => [a.diaryId, a]));
-  const emotionTrend = diaries
-    .filter(d => analysisMap.has(d.id))
-    .map(d => ({ date: d.createdAt.toISOString().slice(0, 10), valence: analysisMap.get(d.id)!.vadScore.valence, emotion: analysisMap.get(d.id)!.primaryEmotion }))
-    .slice(-30);
+  const emotionTrend = useMemo(() => {
+    const aMap = new Map(analyses.map(a => [a.diaryId, a]));
+    return diaries
+      .filter(d => aMap.has(d.id))
+      .map(d => ({ date: d.createdAt.toISOString().slice(0, 10), valence: aMap.get(d.id)!.vadScore.valence, emotion: aMap.get(d.id)!.primaryEmotion }))
+      .slice(-30);
+  }, [diaries, analyses]);
 
   // 课题分布
-  const topicCount: Record<string, number> = {};
-  diaries.forEach(d => {
-    (d.topicIds || []).forEach(tid => {
-      const t = topics.find(x => x.id === tid);
-      if (t) topicCount[t.name] = (topicCount[t.name] || 0) + 1;
+  const { topicEntries, maxTopic } = useMemo(() => {
+    const tc: Record<string, number> = {};
+    diaries.forEach(d => {
+      (d.topicIds || []).forEach(tid => {
+        const t = topics.find(x => x.id === tid);
+        if (t) tc[t.name] = (tc[t.name] || 0) + 1;
+      });
     });
-  });
-  const topicEntries = Object.entries(topicCount).sort((a, b) => b[1] - a[1]);
-  const maxTopic = Math.max(1, ...topicEntries.map(([, c]) => c));
+    const entries = Object.entries(tc).sort((a, b) => b[1] - a[1]);
+    return { topicEntries: entries, maxTopic: Math.max(1, ...entries.map(([, c]) => c)) };
+  }, [diaries, topics]);
 
   // 解决状态分布（基于事件）
-  const statusCount: Record<string, number> = {};
-  events.forEach(e => { statusCount[e.resolutionStatus] = (statusCount[e.resolutionStatus] || 0) + 1; });
+  const statusCount = useMemo(() => {
+    const sc: Record<string, number> = {};
+    events.forEach(e => { sc[e.resolutionStatus] = (sc[e.resolutionStatus] || 0) + 1; });
+    return sc;
+  }, [events]);
   const statusLabels: Record<string, string> = { unresolved: "刚开始", in_progress: "解决中", avoiding: "逃避中", accepted: "无法解决", resolved: "已解决" };
   const statusColors: Record<string, string> = { unresolved: "#E65100", in_progress: "#1565C0", avoiding: "#7B1FA2", accepted: "#546E7A", resolved: "#2E7D32" };
   const totalEvents = events.length || 1;
 
   // 写作频率（按周）
-  const weeks: Record<string, number> = {};
-  diaries.forEach(d => {
-    const d2 = new Date(d.createdAt);
-    const weekStart = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate() - d2.getDay());
-    const wk = weekStart.toISOString().slice(0, 10);
-    weeks[wk] = (weeks[wk] || 0) + 1;
-  });
-  const weekEntries = Object.entries(weeks).sort((a, b) => a[0].localeCompare(b[0])).slice(-12);
-  const maxWeek = Math.max(1, ...weekEntries.map(([, c]) => c));
+  const { weekEntries, maxWeek } = useMemo(() => {
+    const w: Record<string, number> = {};
+    diaries.forEach(d => {
+      const d2 = new Date(d.createdAt);
+      const ws = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate() - d2.getDay());
+      const wk = ws.toISOString().slice(0, 10);
+      w[wk] = (w[wk] || 0) + 1;
+    });
+    const entries = Object.entries(w).sort((a, b) => a[0].localeCompare(b[0])).slice(-12);
+    return { weekEntries: entries, maxWeek: Math.max(1, ...entries.map(([, c]) => c)) };
+  }, [diaries]);
+
+  if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-6 h-6 border-2 border-primary-300 border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="space-y-5">
@@ -144,6 +163,7 @@ export default function StatsPage() {
           <div className="flex items-end gap-0.5 h-24 overflow-x-auto">
             {freqEntries.slice(-60).map(([date, count]) => (
               <div key={date} className="flex-1 flex flex-col items-center justify-end min-w-[6px]" title={`${date}: ${count}篇`}>
+                <span className="text-[10px] text-calm-400 mb-0.5 leading-none">{count}</span>
                 <div className="w-full rounded-t-sm bg-primary-400/60 hover:bg-primary-400 transition-colors" style={{ height: `${(count / maxFreq) * 100}%`, minHeight: count > 0 ? 4 : 0 }} />
               </div>
             ))}
@@ -271,13 +291,23 @@ export default function StatsPage() {
           const handleGenerate = async () => {
             setTrendReports(prev => ({ ...prev, [scope]: { loading: true, report: null, error: null } }));
             try {
-              const { runTrendAnalysis } = await import("@/lib/ai/trend-pipeline");
-              const analysisMap = new Map(analyses.map(a => [a.diaryId, a]));
-              const result = await runTrendAnalysis(scope, {
-                diaries, analyses: analysisMap, events, insights,
-                topics: topics.map(t => ({ id: t.id, name: t.name, color: t.color })),
+              const res = await fetch("/api/trend", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  scope,
+                  diaries,
+                  analyses,
+                  events,
+                  insights,
+                  topics: topics.map(t => ({ id: t.id, name: t.name, color: t.color })),
+                }),
               });
-              // 转换报告格式
+              if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || `请求失败 (${res.status})`);
+              }
+              const result = await res.json();
               let sections: TrendCardReport["sections"] = [];
               if (result.usedLLM && result.report) {
                 sections = Object.entries(result.report)
@@ -286,7 +316,7 @@ export default function StatsPage() {
                     heading: k.replace(/([A-Z])/g, " $1").replace(/^./, s => s.toUpperCase()),
                     content: typeof v === "string" ? v : JSON.stringify(v),
                   }));
-              } else if (result.report.message) {
+              } else if (result.report?.message) {
                 sections = [{ heading: "说明", content: String(result.report.message) }];
               }
               setTrendReports(prev => ({

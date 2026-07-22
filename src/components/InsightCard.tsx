@@ -35,6 +35,11 @@ export default function InsightCard({ insight, topics, events, onDelete }: Props
           <p className="text-xs text-calm-500 line-clamp-3 leading-relaxed mb-2">{insight.content}</p>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-calm-300"><ClientDate date={insight.createdAt} format="relative" /></span>
+            {insight.referenceCount && insight.referenceCount > 1 && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600" title="引用次数">
+                引用 {insight.referenceCount} 次
+              </span>
+            )}
             {insight.linkedTopicIds.map(tid => {
               const t = topicMap.get(tid);
               if (!t) return null;

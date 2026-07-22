@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Trash2, Lightbulb, Plus } from "lucide-react";
 import Link from "next/link";
@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import EventTimeline from "@/components/EventTimeline";
 import InsightList from "@/components/InsightList";
 import InsightForm from "@/components/InsightForm";
-import { createInsight, deleteInsight } from "@/lib/db";
+import { useEvent, useEvents, useTopics, useEventDiaries, useInsights, useUpdateEvent, useCreateInsight, useDeleteInsight, useDeleteEvent } from "@/hooks/useData";
 import type { Event, Diary, Topic, Insight } from "@/types";
 
 const STATUS_OPTIONS = [
@@ -23,59 +23,69 @@ export default function EventDetailPage() {
   const router = useRouter();
   const eventId = params.eventId as string;
 
-  const [event, setEvent] = useState<Event | null>(null);
-  const [diaries, setDiaries] = useState<Diary[]>([]);
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [allEvents, setAllEvents] = useState<Event[]>([]);
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: event, isLoading: eventLoading } = useEvent(eventId);
+  const { data: allEvents = [], isLoading: eventsLoading } = useEvents();
+  const { data: topics = [], isLoading: topicsLoading } = useTopics();
+  const { data: diaries = [], isLoading: diariesLoading } = useEventDiaries(eventId);
+  const { data: allInsights = [], isLoading: insightsLoading } = useInsights();
+
   const [updating, setUpdating] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [showInsightForm, setShowInsightForm] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
-  const load = useCallback(async () => {
-    const [ev, allDiaries, allTopics, allEvs, allInsights] = await Promise.all([
-      db.events.get(eventId),
-      db.diaries.toArray(),
-      db.topics.toArray(),
-      db.events.toArray(),
-      db.insights.orderBy("createdAt").reverse().toArray(),
-    ]);
-    setEvent(ev || null);
-    setTopics(allTopics);
-    setAllEvents(allEvs);
-    setDiaries(allDiaries.filter(d => d.eventId === eventId));
-    setInsights(allInsights.filter(i => (i.linkedEventIds || []).includes(eventId)));
-    setLoading(false);
-  }, [eventId]);
+  const updateEventMutation = useUpdateEvent();
+  const createInsightMutation = useCreateInsight();
+  const deleteInsightMutation = useDeleteInsight();
+  const deleteEventMutation = useDeleteEvent();
 
-  useEffect(() => { load(); }, [load]);
+  const insights = useMemo(() =>
+    allInsights.filter(i => (i.linkedEventIds || []).includes(eventId)),
+    [allInsights, eventId],
+  );
+
+  const loading = eventLoading || eventsLoading || topicsLoading || diariesLoading || insightsLoading;
+
+  // Auto-focus title input when editing starts
+  useEffect(() => {
+    if (editingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [editingTitle]);
+
+  const handleTitleSave = async () => {
+    const trimmed = editTitle.trim();
+    if (!trimmed || !event || trimmed === event.title) {
+      setEditingTitle(false);
+      return;
+    }
+    await updateEventMutation.mutateAsync({ id: eventId, title: trimmed, updatedAt: new Date() });
+    setEditingTitle(false);
+  };
 
   const handleStatusChange = async (status: string) => {
     if (!event) return;
     setUpdating(true);
-    await db.events.update(eventId, { resolutionStatus: status as any, updatedAt: new Date() });
-    setEvent({ ...event, resolutionStatus: status as any, updatedAt: new Date() });
+    await updateEventMutation.mutateAsync({ id: eventId, resolutionStatus: status, updatedAt: new Date() });
     setUpdating(false);
   };
 
   const handleSaveInsight = async (input: { title: string; content: string; linkedEventIds: string[]; linkedTopicIds: string[] }) => {
-    await createInsight({ ...input, linkedEventIds: [...input.linkedEventIds, eventId] });
+    await createInsightMutation.mutateAsync({ ...input, linkedEventIds: [...input.linkedEventIds, eventId] });
     setShowInsightForm(false);
-    await load();
   };
 
   const handleDeleteInsight = async (id: string) => {
-    await deleteInsight(id);
-    setInsights(prev => prev.filter(i => i.id !== id));
+    await deleteInsightMutation.mutateAsync(id);
   };
 
   const handleDelete = async () => {
     if (!deleteConfirm) { setDeleteConfirm(true); return; }
-    await db.events.delete(eventId);
-    for (const d of diaries) {
-      await db.diaries.update(d.id, { eventId: null });
-    }
+    await deleteEventMutation.mutateAsync(eventId);
+    await Promise.all(diaries.map(d => db.diaries.update(d.id, { eventId: null })));
     router.push("/events");
   };
 
@@ -92,7 +102,21 @@ export default function EventDetailPage() {
       <div className="bg-white rounded-2xl border border-calm-200 p-5">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
-            <h1 className="text-lg font-serif font-semibold text-calm-900">{event.title}</h1>
+            {editingTitle ? (
+              <input
+                ref={titleInputRef}
+                type="text" value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                onBlur={handleTitleSave}
+                onKeyDown={e => { if (e.key === "Enter") handleTitleSave(); if (e.key === "Escape") setEditingTitle(false); }}
+                className="text-lg font-serif font-semibold text-calm-900 bg-calm-50 border border-calm-300 rounded-lg px-2 py-1 outline-none w-full"
+              />
+            ) : (
+              <h1 className="text-lg font-serif font-semibold text-calm-900"
+                onDoubleClick={() => { setEditTitle(event.title); setEditingTitle(true); }}>
+                {event.title}
+              </h1>
+            )}
             {topic && (
               <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs text-white" style={{ backgroundColor: topic.color }}>
                 {topic.name}

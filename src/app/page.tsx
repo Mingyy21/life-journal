@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import DiaryEditor from "@/components/DiaryEditor";
 import DiaryList from "@/components/DiaryList";
@@ -11,6 +12,7 @@ import PatternAlert, { type PatternAlertData } from "@/components/PatternAlert";
 import { runAllPatternChecks } from "@/lib/pattern-store";
 import { useDiary } from "@/hooks/useDiary";
 import { useSuggestEvent } from "@/hooks/useSuggestEvent";
+import { useEvents } from "@/hooks/useData";
 import { db } from "@/lib/db";
 import type { Event } from "@/types";
 
@@ -31,18 +33,12 @@ export default function HomePage() {
   const [showEditor, setShowEditor] = useState(false);
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [events, setEvents] = useState<Event[]>([]);
+  const { data: eventList = [] } = useEvents();
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [initLoaded, setInitLoaded] = useState(false);
   const [patternAlerts, setPatternAlerts] = useState<PatternAlertData[]>([]);
 
-  const loadEvents = useCallback(async () => {
-    try {
-      const all = await db.events.orderBy("createdAt").reverse().toArray();
-      setEvents(all);
-    } catch { /* 事件加载可选，不阻塞页面 */ }
-  }, []);
-
+  const qc = useQueryClient();
   const suggestion = useSuggestEvent(diaries, topics);
 
   const refreshWithFilter = useCallback((date: Date, topicId: string | null) => {
@@ -58,11 +54,10 @@ export default function HomePage() {
     if (ready && !initLoaded) {
       setInitLoaded(true);
       refreshWithFilter(selectedDate, selectedTopicId);
-      loadEvents();
       // 异步运行模式检测
       runAllPatternChecks().then(alerts => setPatternAlerts(alerts)).catch(() => {});
     }
-  }, [ready, initLoaded, selectedDate, selectedTopicId, refreshWithFilter, loadEvents]);
+  }, [ready, initLoaded, selectedDate, selectedTopicId, refreshWithFilter]);
 
   const handleDateChange = (date: Date, dateFrom: Date, dateTo: Date) => {
     setSelectedDate(date);
@@ -82,12 +77,12 @@ export default function HomePage() {
     await addDiary(input);
     setShowEditor(false);
     refreshWithFilter(selectedDate, selectedTopicId);
-    loadEvents();
   };
 
   const handleCreateEvent = async (input: { title: string; topicId: string }): Promise<Event | null> => {
-    const event = await db.events.add({
-      id: crypto.randomUUID(),
+    const eventId = crypto.randomUUID();
+    await db.events.add({
+      id: eventId,
       topicId: input.topicId,
       title: input.title,
       description: "",
@@ -95,8 +90,8 @@ export default function HomePage() {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    await loadEvents();
-    const created = await db.events.get(event as string);
+    qc.invalidateQueries({ queryKey: ["events"] });
+    const created = await db.events.get(eventId);
     return created || null;
   };
 
@@ -122,7 +117,7 @@ export default function HomePage() {
           <p className="text-calm-400 text-sm group-hover:text-primary-500 transition-colors">记录今天的想法...</p>
         </button>
       ) : (
-        <DiaryEditor domains={domains} topics={topics} events={events} onSave={handleSave} onCreateEvent={handleCreateEvent} onCancel={() => setShowEditor(false)} />
+        <DiaryEditor domains={domains} topics={topics} events={eventList} onSave={handleSave} onCreateEvent={handleCreateEvent} onCancel={() => setShowEditor(false)} />
       )}
 
       {suggestion && !bannerDismissed && !showEditor && (
@@ -138,7 +133,7 @@ export default function HomePage() {
       )}
 
       <DomainTopicFilter domains={domains} topics={topics} selectedTopicId={selectedTopicId} onTopicSelect={handleTopicSelect} />
-      <DiaryList diaries={diaries} topics={topics} events={events} loading={loading || !initLoaded} />
+      <DiaryList diaries={diaries} topics={topics} events={eventList} loading={loading || !initLoaded} />
       <DataExportImport />
     </div>
   );

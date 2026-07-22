@@ -1,9 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Lightbulb, Trash2, Link2, Tag } from "lucide-react";
 import Link from "next/link";
-import { db, ensureDb } from "@/lib/db";
+import { useQuery } from "@tanstack/react-query";
+import { useInit } from "@/components/InitProvider";
+import { queryKeys, useTopics, useEvents, useDeleteInsight } from "@/hooks/useData";
+import { db } from "@/lib/db";
 import type { Insight, Topic, Event } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
 import { EventBadge } from "@/components/EventBadge";
@@ -12,35 +15,24 @@ export default function InsightDetailPage() {
   const params = useParams();
   const router = useRouter();
   const insightId = params.id as string;
-  const [insight, setInsight] = useState<Insight | null>(null);
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { ready } = useInit();
+  const { data: topics = [] } = useTopics();
+  const { data: events = [] } = useEvents();
+  const { data: insight, isLoading } = useQuery({
+    queryKey: queryKeys.insight(insightId),
+    queryFn: () => db.insights.get(insightId).then(r => r || null),
+    enabled: ready,
+  });
+  const deleteInsightMutation = useDeleteInsight();
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-
-  useEffect(() => {
-    async function load() {
-      await ensureDb();
-      const [ins, ts, es] = await Promise.all([
-        db.insights.get(insightId),
-        db.topics.toArray(),
-        db.events.toArray(),
-      ]);
-      setInsight(ins || null);
-      setTopics(ts);
-      setEvents(es);
-      setLoading(false);
-    }
-    load();
-  }, [insightId]);
 
   const handleDelete = async () => {
     if (!deleteConfirm) { setDeleteConfirm(true); return; }
-    if (insight) await db.insights.delete(insight.id);
+    if (insight) await deleteInsightMutation.mutateAsync(insight.id);
     router.push("/insights");
   };
 
-  if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="w-6 h-6 text-primary-400 animate-spin" /></div>;
+  if (isLoading) return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="w-6 h-6 text-primary-400 animate-spin" /></div>;
   if (!insight) return <div className="text-center py-16"><p className="text-calm-400 text-sm">感悟不存在</p><Link href="/insights" className="text-primary-500 text-sm mt-2 inline-block hover:underline">返回感悟列表</Link></div>;
 
   const topicMap = new Map(topics.map(t => [t.id, t]));

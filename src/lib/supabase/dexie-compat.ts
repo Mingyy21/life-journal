@@ -54,6 +54,7 @@ class SupabaseCollection<T extends { id: string }> {
   private orderCol: string | null = null;
   private orderAsc = true;
   private limitN: number | null = null;
+  private offsetN: number | null = null;
   private predicate: ((item: T) => boolean) | null = null;
 
   constructor(
@@ -62,12 +63,14 @@ class SupabaseCollection<T extends { id: string }> {
     orderCol?: string | null,
     orderAsc?: boolean,
     limitN?: number | null,
+    offsetN?: number | null,
     predicate?: ((item: T) => boolean) | null,
   ) {
     if (filters) this.filters = [...filters];
     if (orderCol !== undefined) this.orderCol = orderCol;
     if (orderAsc !== undefined) this.orderAsc = orderAsc;
     if (limitN !== undefined) this.limitN = limitN;
+    if (offsetN !== undefined) this.offsetN = offsetN;
     if (predicate !== undefined) this.predicate = predicate;
   }
 
@@ -76,6 +79,7 @@ class SupabaseCollection<T extends { id: string }> {
     orderCol: string | null;
     orderAsc: boolean;
     limitN: number | null;
+    offsetN: number | null;
     predicate: ((item: T) => boolean) | null;
   }>): SupabaseCollection<T> {
     return new SupabaseCollection<T>(
@@ -84,6 +88,7 @@ class SupabaseCollection<T extends { id: string }> {
       overrides.orderCol ?? this.orderCol,
       overrides.orderAsc ?? this.orderAsc,
       overrides.limitN ?? this.limitN,
+      overrides.offsetN ?? this.offsetN,
       overrides.predicate ?? this.predicate,
     );
   }
@@ -110,6 +115,14 @@ class SupabaseCollection<T extends { id: string }> {
     return this.clone({ orderAsc: !this.orderAsc });
   }
 
+  limit(n: number): SupabaseCollection<T> {
+    return this.clone({ limitN: n });
+  }
+
+  offset(n: number): SupabaseCollection<T> {
+    return this.clone({ offsetN: n });
+  }
+
   private buildQuery() {
     let req = supabase.from(this.tableName).select("*", { count: "exact" });
     req = req.eq("userId", userId());
@@ -124,6 +137,9 @@ class SupabaseCollection<T extends { id: string }> {
     }
     if (this.limitN !== null) {
       req = req.limit(this.limitN);
+    }
+    if (this.offsetN !== null) {
+      req = req.range(this.offsetN, this.offsetN + (this.limitN || 100) - 1);
     }
     return req;
   }
@@ -266,16 +282,22 @@ export class SupabaseTable<T extends { id: string }> {
     return (data || []).map(deserializeDates<T>);
   }
 
+  async limit(n: number): Promise<T[]> {
+    const { data, error } = await supabase.from(this.tableName).select("*").eq("userId", userId()).limit(n);
+    if (error) throw error;
+    return (data || []).map(deserializeDates<T>);
+  }
+
   where(index: string): SupabaseCollection<T> {
     return new SupabaseCollection<T>(this.tableName, [{ col: index, op: "where", value: undefined! }]);
   }
 
   orderBy(index: string): SupabaseCollection<T> {
-    return new SupabaseCollection<T>(this.tableName, [], index, true, null, null);
+    return new SupabaseCollection<T>(this.tableName, [], index, true, null, null, null);
   }
 
   filter(predicate: (item: T) => boolean): SupabaseCollection<T> {
-    return new SupabaseCollection<T>(this.tableName, [], null, true, null, predicate);
+    return new SupabaseCollection<T>(this.tableName, [], null, true, null, null, predicate);
   }
 }
 
@@ -288,9 +310,10 @@ export const supabaseProxy = {
   analysisResults: new SupabaseTable<AnalysisResult>("analysisresults"),
   events: new SupabaseTable<Event>("events"),
   insights: new SupabaseTable<Insight>("insights"),
+  worldviews: new SupabaseTable<any>("worldviews"),
 
   async delete() {
-    for (const name of ["diaries", "topics", "lifedomains", "analysisresults", "events", "insights"]) {
+    for (const name of ["diaries", "topics", "lifedomains", "analysisresults", "events", "insights", "worldviews"]) {
       const t = new SupabaseTable(name);
       await t.clear();
     }

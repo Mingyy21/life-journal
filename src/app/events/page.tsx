@@ -1,50 +1,43 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, AlertCircle } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
-import { db, ensureDb } from "@/lib/db";
 import EventCard from "@/components/EventCard";
-import type { Event, Topic } from "@/types";
+import { useEvents, useAllDiaries } from "@/hooks/useData";
+import type { Event } from "@/types";
 
 type StatusGroup = { status: string; label: string; events: { event: Event; diaryCount: number }[] };
 
 export default function EventsPage() {
   const router = useRouter();
-  const [groups, setGroups] = useState<StatusGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: events } = useEvents();
+  const { data: diaries } = useAllDiaries();
 
-  useEffect(() => {
-    async function load() {
-      await ensureDb();
-      const [events, diaries] = await Promise.all([db.events.orderBy("createdAt").reverse().toArray(), db.diaries.toArray()]);
+  const groups = useMemo<StatusGroup[]>(() => {
+    if (!events || !diaries) return [];
 
-      const diaryCountMap = new Map<string, number>();
-      diaries.forEach(d => {
-        if (d.eventId) diaryCountMap.set(d.eventId, (diaryCountMap.get(d.eventId) || 0) + 1);
-      });
+    const diaryCountMap = new Map<string, number>();
+    diaries.forEach(d => {
+      if (d.eventId) diaryCountMap.set(d.eventId, (diaryCountMap.get(d.eventId) || 0) + 1);
+    });
 
-      const statusOrder = [
-        { key: "unresolved", label: "未解决" },
-        { key: "in_progress", label: "解决中" },
-        { key: "avoiding", label: "逃避中" },
-        { key: "accepted", label: "已接纳" },
-        { key: "resolved", label: "已解决" },
-      ];
+    const statusOrder = [
+      { key: "unresolved", label: "未解决" },
+      { key: "in_progress", label: "解决中" },
+      { key: "avoiding", label: "逃避中" },
+      { key: "accepted", label: "已接纳" },
+      { key: "resolved", label: "已解决" },
+    ];
 
-      const grouped = statusOrder.map(({ key, label }) => ({
-        status: key,
-        label,
-        events: events
-          .filter(e => e.resolutionStatus === key)
-          .map(e => ({ event: e, diaryCount: diaryCountMap.get(e.id) || 0 })),
-      })).filter(g => g.events.length > 0);
-
-      setGroups(grouped);
-      setLoading(false);
-    }
-    load();
-  }, []);
+    return statusOrder.map(({ key, label }) => ({
+      status: key,
+      label,
+      events: events
+        .filter(e => e.resolutionStatus === key)
+        .map(e => ({ event: e, diaryCount: diaryCountMap.get(e.id) || 0 })),
+    })).filter(g => g.events.length > 0);
+  }, [events, diaries]);
 
   return (
     <div className="space-y-5">

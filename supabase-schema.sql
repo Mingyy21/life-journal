@@ -1,8 +1,9 @@
 -- 人生手记 Supabase 建表脚本
 -- 在 Supabase SQL Editor 中粘贴并运行此脚本
+-- 表名使用小写，与 dexie-compat.ts 中的字符串一致
 
--- 1. life_domains
-CREATE TABLE IF NOT EXISTS lifeDomains (
+-- 1. lifedomains
+CREATE TABLE IF NOT EXISTS lifedomains (
   id TEXT PRIMARY KEY,
   "userId" UUID NOT NULL DEFAULT auth.uid(),
   name TEXT NOT NULL,
@@ -52,8 +53,8 @@ CREATE TABLE IF NOT EXISTS diaries (
   "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 5. analysisResults
-CREATE TABLE IF NOT EXISTS analysisResults (
+-- 5. analysisresults
+CREATE TABLE IF NOT EXISTS analysisresults (
   id TEXT PRIMARY KEY,
   "userId" UUID NOT NULL DEFAULT auth.uid(),
   "diaryId" TEXT NOT NULL,
@@ -79,30 +80,44 @@ CREATE TABLE IF NOT EXISTS insights (
   "linkedEventIds" TEXT[] NOT NULL DEFAULT '{}',
   "linkedTopicIds" TEXT[] NOT NULL DEFAULT '{}',
   "sourceDiaryId" TEXT,
+  "referenceCount" INTEGER NOT NULL DEFAULT 1,
   "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 索引
+-- 7. worldviews（预留）
+CREATE TABLE IF NOT EXISTS worldviews (
+  id TEXT PRIMARY KEY,
+  "userId" UUID NOT NULL DEFAULT auth.uid(),
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  "topicIds" TEXT[] NOT NULL DEFAULT '{}',
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 索引（提升查询性能）
 CREATE INDEX IF NOT EXISTS idx_diaries_userId ON diaries("userId");
 CREATE INDEX IF NOT EXISTS idx_diaries_createdAt ON diaries("userId", "createdAt" DESC);
 CREATE INDEX IF NOT EXISTS idx_diaries_eventId ON diaries("userId", "eventId");
 CREATE INDEX IF NOT EXISTS idx_events_topicId ON events("userId", "topicId");
 CREATE INDEX IF NOT EXISTS idx_events_resolutionStatus ON events("userId", "resolutionStatus");
 CREATE INDEX IF NOT EXISTS idx_topics_domainId ON topics("userId", "domainId");
-CREATE INDEX IF NOT EXISTS idx_analysisResults_diaryId ON analysisResults("userId", "diaryId");
+CREATE INDEX IF NOT EXISTS idx_analysisresults_diaryId ON analysisresults("userId", "diaryId");
 CREATE INDEX IF NOT EXISTS idx_insights_createdAt ON insights("userId", "createdAt" DESC);
 
--- RLS
-ALTER TABLE lifeDomains ENABLE ROW LEVEL SECURITY;
+-- RLS（行级安全）：用户只能看到自己的数据
+ALTER TABLE lifedomains ENABLE ROW LEVEL SECURITY;
 ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
 ALTER TABLE diaries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE analysisResults ENABLE ROW LEVEL SECURITY;
+ALTER TABLE analysisresults ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE insights ENABLE ROW LEVEL SECURITY;
+ALTER TABLE worldviews ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "owner_access" ON lifeDomains FOR ALL USING (auth.uid() = "userId");
+-- 所有表统一策略：auth.uid() = "userId"
+CREATE POLICY "owner_access" ON lifedomains FOR ALL USING (auth.uid() = "userId");
 CREATE POLICY "owner_access" ON topics FOR ALL USING (auth.uid() = "userId");
 CREATE POLICY "owner_access" ON diaries FOR ALL USING (auth.uid() = "userId");
-CREATE POLICY "owner_access" ON analysisResults FOR ALL USING (auth.uid() = "userId");
+CREATE POLICY "owner_access" ON analysisresults FOR ALL USING (auth.uid() = "userId");
 CREATE POLICY "owner_access" ON events FOR ALL USING (auth.uid() = "userId");
 CREATE POLICY "owner_access" ON insights FOR ALL USING (auth.uid() = "userId");
+CREATE POLICY "owner_access" ON worldviews FOR ALL USING (auth.uid() = "userId");

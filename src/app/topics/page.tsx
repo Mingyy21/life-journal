@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Lightbulb, Plus, Settings2, Compass } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
@@ -8,15 +8,23 @@ import TopicOverview from "@/components/TopicOverview";
 import TopicForm from "@/components/TopicForm";
 import DomainForm from "@/components/DomainForm";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
-import { db, ensureDb, updateTopic, deleteTopicCascade, updateDomain, deleteDomainCascade, createTopic as dbCreateTopic, createDomain as dbCreateDomain } from "@/lib/db";
+import { useInit } from "@/components/InitProvider";
+import { useTopics, useDomains, useAllDiaries, useEvents } from "@/hooks/useData";
+import { db, updateTopic, deleteTopicCascade, updateDomain, deleteDomainCascade, createTopic as dbCreateTopic, createDomain as dbCreateDomain } from "@/lib/db";
 import type { LifeDomain, Topic } from "@/types";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/hooks/useData";
 
 export default function TopicsPage() {
   const router = useRouter();
-  const [domains, setDomains] = useState<LifeDomain[]>([]);
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [topicStats, setTopicStats] = useState<Record<string, { total: number; unresolved: number; latestDate: Date | null }>>({});
-  const [loading, setLoading] = useState(true);
+  const { ready } = useInit();
+  const qc = useQueryClient();
+
+  const { data: domains = [], isLoading: domainsLoading } = useDomains();
+  const { data: topics = [] } = useTopics();
+  const { data: allDiaries = [] } = useAllDiaries();
+  const { data: allEvents = [] } = useEvents();
+
   const [manageMode, setManageMode] = useState(false);
   const [showTopicForm, setShowTopicForm] = useState(false);
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
@@ -24,68 +32,68 @@ export default function TopicsPage() {
   const [editingDomain, setEditingDomain] = useState<LifeDomain | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "topic"; id: string; name: string } | { type: "domain"; id: string; name: string } | null>(null);
 
-  const loadAll = async () => {
-    await ensureDb();
-    const [ds, ts] = await Promise.all([db.lifeDomains.toArray(), db.topics.toArray()]);
-    setDomains(ds.sort((a, b) => a.order - b.order));
-    setTopics(ts);
-
-    const [diaries, events] = await Promise.all([db.diaries.toArray(), db.events.toArray()]);
+  const topicStats = useMemo(() => {
     const stats: Record<string, { total: number; unresolved: number; latestDate: Date | null }> = {};
-    for (const t of ts) {
-      const td = diaries.filter(d => (d.topicIds || []).includes(t.id));
-      const topicEvents = events.filter(e => e.topicId === t.id);
+    for (const t of topics) {
+      const td = allDiaries.filter(d => (d.topicIds || []).includes(t.id));
+      const topicEvents = allEvents.filter(e => e.topicId === t.id);
       stats[t.id] = {
         total: td.length,
         unresolved: topicEvents.filter(e => e.resolutionStatus !== "resolved" && e.resolutionStatus !== "accepted").length,
         latestDate: td.length > 0 ? td.reduce((max, d) => d.createdAt > max ? d.createdAt : max, td[0].createdAt) : null,
       };
     }
-    setTopicStats(stats);
-    setLoading(false);
-  };
+    return stats;
+  }, [topics, allDiaries, allEvents]);
 
-  useEffect(() => { loadAll(); }, []);
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: queryKeys.topics });
+    qc.invalidateQueries({ queryKey: queryKeys.domains });
+    qc.invalidateQueries({ queryKey: queryKeys.diaries() });
+    qc.invalidateQueries({ queryKey: queryKeys.events });
+  };
 
   const handleCreateTopic = async (input: { name: string; domainId: string; color: string; icon: string; description: string }) => {
     await dbCreateTopic(input);
     setShowTopicForm(false);
-    await loadAll();
+    invalidate();
   };
 
   const handleUpdateTopic = async (input: { name: string; domainId: string; color: string; icon: string; description: string }) => {
     if (!editingTopic) return;
     await updateTopic(editingTopic.id, input);
     setEditingTopic(null);
-    await loadAll();
+    invalidate();
   };
 
   const handleDeleteTopic = async () => {
     if (!deleteTarget || deleteTarget.type !== "topic") return;
     await deleteTopicCascade(deleteTarget.id);
     setDeleteTarget(null);
-    await loadAll();
+    invalidate();
   };
 
   const handleCreateDomain = async (input: { name: string; color: string; icon: string; description: string }) => {
     await dbCreateDomain(input);
     setShowDomainForm(false);
-    await loadAll();
+    invalidate();
   };
 
   const handleUpdateDomain = async (input: { name: string; color: string; icon: string; description: string }) => {
     if (!editingDomain) return;
     await updateDomain(editingDomain.id, input);
     setEditingDomain(null);
-    await loadAll();
+    invalidate();
   };
 
   const handleDeleteDomain = async () => {
     if (!deleteTarget || deleteTarget.type !== "domain") return;
     await deleteDomainCascade(deleteTarget.id);
     setDeleteTarget(null);
-    await loadAll();
+    invalidate();
   };
+
+  if (!ready && domainsLoading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-6 h-6 border-2 border-primary-300 border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="space-y-5">
@@ -126,7 +134,6 @@ export default function TopicsPage() {
           onCancel={() => { setShowDomainForm(false); setEditingDomain(null); }} />
       )}
 
-      {/* 删除确认对话框（内联在页面中间） */}
       {deleteTarget && (
         <DeleteConfirmDialog
           title={`删除${deleteTarget.type === "topic" ? "课题" : "领域"}`}
@@ -138,7 +145,6 @@ export default function TopicsPage() {
         />
       )}
 
-      {/* 直接在小节卡片上显示编辑/删除按钮 */}
       <TopicOverview
         domains={domains} topics={topics} topicStats={topicStats}
         manageMode={manageMode}
@@ -148,7 +154,7 @@ export default function TopicsPage() {
         onDeleteDomain={(id, name) => setDeleteTarget({ type: "domain", id, name })}
       />
 
-      {domains.length === 0 && !loading && (
+      {domains.length === 0 && !domainsLoading && (
         <EmptyState
           icon={<Compass className="w-16 h-16" />}
           title="还没有领域"

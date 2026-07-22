@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { setUserId } from "@/lib/supabase/dexie-compat";
+import { resetDbState } from "@/lib/db";
 
 interface AuthState {
   loading: boolean;
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setUserId(null);
+    resetDbState();
     setShowAuthGate(true);
   }, []);
 

@@ -1,49 +1,29 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Lightbulb } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
-import { db, ensureDb } from "@/lib/db";
 import InsightList from "@/components/InsightList";
 import InsightForm from "@/components/InsightForm";
-import type { Insight, Topic, Event } from "@/types";
-import { createInsight, deleteInsight as dbDeleteInsight } from "@/lib/db";
+import { useInsights, useTopics, useEvents, useCreateInsight, useDeleteInsight } from "@/hooks/useData";
 
 export default function InsightsPage() {
   const router = useRouter();
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: insights = [], isLoading } = useInsights();
+  const { data: topics = [] } = useTopics();
+  const { data: events = [] } = useEvents();
+  const createInsightMutation = useCreateInsight();
+  const deleteInsightMutation = useDeleteInsight();
   const [showForm, setShowForm] = useState(false);
 
-  const load = async () => {
-    const [ins, ts, es] = await Promise.all([
-      db.insights.orderBy("createdAt").reverse().toArray(),
-      db.topics.toArray(),
-      db.events.toArray(),
-    ]);
-    setInsights(ins);
-    setTopics(ts);
-    setEvents(es);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    async function init() { await ensureDb(); await load(); }
-    init();
-  }, []);
-
   const handleSave = async (input: { title: string; content: string; linkedEventIds: string[]; linkedTopicIds: string[] }) => {
-    await createInsight(input);
-    await load();
+    await createInsightMutation.mutateAsync(input);
     setShowForm(false);
   };
 
   const handleDelete = async (id: string) => {
-    await dbDeleteInsight(id);
-    setInsights(prev => prev.filter(i => i.id !== id));
+    await deleteInsightMutation.mutateAsync(id);
   };
 
   return (

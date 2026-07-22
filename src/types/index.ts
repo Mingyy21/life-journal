@@ -44,6 +44,7 @@ export interface Insight {
   linkedEventIds: string[];
   linkedTopicIds: string[];
   sourceDiaryId?: string;
+  referenceCount?: number;
   createdAt: Date;
 }
 

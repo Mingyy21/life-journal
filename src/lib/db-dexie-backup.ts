@@ -1,27 +1,47 @@
-// 人生手记 - Supabase 数据库层
+// 人生手记 - Dexie.js 数据库层 v0.4
+import Dexie, { type Table } from "dexie";
 import type { Diary, Topic, LifeDomain, AnalysisResult, Event, Insight, CreateEventInput, UpdateEventInput, CreateInsightInput, EventFilter, InsightFilter } from "@/types";
-import { supabaseProxy } from "@/lib/supabase/dexie-compat";
 
-export const db = supabaseProxy;
+export class LifeJournalDB extends Dexie {
+  lifeDomains!: Table<LifeDomain, string>;
+  topics!: Table<Topic, string>;
+  diaries!: Table<Diary, string>;
+  analysisResults!: Table<AnalysisResult, string>;
+  events!: Table<Event, string>;
+  insights!: Table<Insight, string>;
+
+  constructor() {
+    super("LifeJournalDB");
+    this.version(3).stores({
+      lifeDomains: "id",
+      topics: "id, domainId",
+      diaries: "id, createdAt, updatedAt, *topicIds, hasAnalysis, eventId",
+      analysisResults: "id, diaryId, createdAt",
+      events: "id, topicId, resolutionStatus, createdAt",
+      insights: "id, createdAt",
+    });
+    this.on("blocked", () => {
+      console.warn("数据库被其他连接阻塞，尝试强制关闭...");
+      this.close();
+    });
+  }
+}
+
+export const db = new LifeJournalDB();
 
 // ── 统一数据库打开 ──
 
-let _dbReady = false;
-
 export async function ensureDb(): Promise<void> {
-  if (_dbReady) return;
+  try { db.close(); } catch (_) { /* 忽略 */ }
   try {
     await db.open();
   } catch {
-    throw new Error("请先登录");
+    console.warn("数据库版本冲突，清除旧数据重建...");
+    try { db.close(); } catch (_) { /* 忽略 */ }
+    await db.delete();
+    await db.open();
   }
   await initDefaultData();
-  _dbReady = true;
-}
-
-/** 重置初始化状态（登出时调用） */
-export function resetDbState() {
-  _dbReady = false;
 }
 
 // ── 默认数据 ──
@@ -45,21 +65,45 @@ export const DEFAULT_TOPICS: Topic[] = [
   { id: "topic-study", name: "学习", domainId: "domain-career", color: "#45B7D1", icon: "BookOpen", description: "学习成长、技能提升与认知拓展", diaryCount: 0, createdAt: new Date() },
 ];
 
+// ── 迁移 ──
+
+const MIGRATION_KEY = "migrated_v3";
+
+export async function migrateV2toV3(): Promise<void> {
+  const migrated = localStorage.getItem(MIGRATION_KEY);
+  if (migrated) return;
+
+  const allDiaries = await db.diaries.toArray();
+  for (const diary of allDiaries) {
+    const rs = (diary as any).resolutionStatus as string | undefined;
+    if (!rs) continue;
+
+    const eventId = crypto.randomUUID();
+    const firstTopicId = (diary.topicIds || [])[0] || DEFAULT_TOPICS[0].id;
+    const event: Event = {
+      id: eventId,
+      topicId: firstTopicId,
+      title: diary.title,
+      description: diary.content.slice(0, 80) + (diary.content.length > 80 ? "..." : ""),
+      resolutionStatus: rs as any,
+      createdAt: diary.createdAt,
+      updatedAt: diary.updatedAt,
+    };
+    await db.events.put(event);
+    await db.diaries.update(diary.id, { eventId } as any);
+  }
+
+  localStorage.setItem(MIGRATION_KEY, "true");
+}
+
 // ── 初始化 ──
 
 export async function initDefaultData(): Promise<void> {
-  const [existingTopics, existingDomains] = await Promise.all([
-    db.topics.toArray(),
-    db.lifeDomains.toArray(),
-  ]);
-  const topicIds = new Set(existingTopics.map(t => t.id));
-  const domainIds = new Set(existingDomains.map(d => d.id));
-
-  const toAddTopics = DEFAULT_TOPICS.filter(t => !topicIds.has(t.id));
-  const toAddDomains = DEFAULT_LIFE_DOMAINS.filter(d => !domainIds.has(d.id));
-
-  if (toAddTopics.length > 0) await db.topics.bulkAdd(toAddTopics);
-  if (toAddDomains.length > 0) await db.lifeDomains.bulkAdd(toAddDomains);
+  const domainCount = await db.lifeDomains.count();
+  if (domainCount === 0) await db.lifeDomains.bulkAdd(DEFAULT_LIFE_DOMAINS);
+  const topicCount = await db.topics.count();
+  if (topicCount === 0) await db.topics.bulkAdd(DEFAULT_TOPICS);
+  await migrateV2toV3();
 }
 
 // ── 日记 CRUD ──
@@ -78,6 +122,10 @@ export async function createDiary(input: { title: string; content: string; topic
     updatedAt: new Date(),
   };
   await db.diaries.add(diary);
+  for (const topicId of input.topicIds) {
+    const topic = await db.topics.get(topicId);
+    if (topic) await db.topics.update(topicId, { diaryCount: topic.diaryCount + 1 });
+  }
   return diary;
 }
 
@@ -91,12 +139,16 @@ export async function updateDiary(id: string, input: { title?: string; content?:
   if (input.content !== undefined) { updates.content = input.content; updates.wordCount = input.content.length; }
   if (input.topicIds !== undefined) updates.topicIds = input.topicIds;
   if (input.eventId !== undefined) updates.eventId = input.eventId;
-  await db.diaries.update(id, updates as any);
+  await db.diaries.update(id, updates);
 }
 
 export async function deleteDiary(id: string): Promise<void> {
   const diary = await db.diaries.get(id);
   if (!diary) return;
+  for (const topicId of (diary.topicIds || [])) {
+    const topic = await db.topics.get(topicId);
+    if (topic && topic.diaryCount > 0) await db.topics.update(topicId, { diaryCount: topic.diaryCount - 1 });
+  }
   if (diary.analysisId) await db.analysisResults.delete(diary.analysisId);
   await db.diaries.delete(id);
 }
@@ -104,13 +156,13 @@ export async function deleteDiary(id: string): Promise<void> {
 export async function listDiaries(filter?: { domainId?: string; topicId?: string; eventId?: string; resolutionStatus?: string; hasAnalysis?: boolean; keyword?: string; dateFrom?: Date; dateTo?: Date }, limit = 50, offset = 0): Promise<Diary[]> {
   let diaries: Diary[];
   if (filter?.dateFrom && filter?.dateTo) {
-    diaries = await db.diaries.where("createdAt").between(filter.dateFrom, filter.dateTo).reverse().toArray();
+    diaries = await db.diaries.where("createdAt").between(filter.dateFrom, filter.dateTo, true, true).reverse().toArray();
   } else {
     diaries = await db.diaries.orderBy("createdAt").reverse().toArray();
   }
   let result = diaries;
   if (filter?.domainId) {
-    const domainTopics = await getTopicsByDomain(filter.domainId);
+    const domainTopics = await db.topics.where("domainId").equals(filter.domainId).toArray();
     const domainTopicIds = new Set(domainTopics.map(t => t.id));
     result = result.filter(d => (d.topicIds || []).some(tid => domainTopicIds.has(tid)));
   }
@@ -130,7 +182,7 @@ export async function listDiaries(filter?: { domainId?: string; topicId?: string
 
 export async function saveAnalysis(analysis: AnalysisResult): Promise<void> {
   await db.analysisResults.put(analysis);
-  await db.diaries.update(analysis.diaryId, { analysisId: analysis.id, hasAnalysis: true } as any);
+  await db.diaries.update(analysis.diaryId, { analysisId: analysis.id, hasAnalysis: true });
 }
 
 export async function getAnalysis(diaryId: string): Promise<AnalysisResult | undefined> {
@@ -162,28 +214,31 @@ export async function updateEvent(id: string, input: UpdateEventInput): Promise<
   if (input.title !== undefined) updates.title = input.title;
   if (input.description !== undefined) updates.description = input.description;
   if (input.resolutionStatus !== undefined) updates.resolutionStatus = input.resolutionStatus;
-  await db.events.update(id, updates as any);
+  await db.events.update(id, updates);
 }
 
 export async function deleteEvent(id: string): Promise<void> {
   const diariesWithEvent = await db.diaries.where("eventId").equals(id).toArray();
   for (const d of diariesWithEvent) {
-    await db.diaries.update(d.id, { eventId: null } as any);
+    await db.diaries.update(d.id, { eventId: null });
   }
   const linkedInsights = await db.insights.filter(i => (i.linkedEventIds || []).includes(id)).toArray();
   for (const ins of linkedInsights) {
-    await db.insights.update(ins.id, { linkedEventIds: (ins.linkedEventIds || []).filter(eid => eid !== id) } as any);
+    await db.insights.update(ins.id, { linkedEventIds: (ins.linkedEventIds || []).filter(eid => eid !== id) });
   }
   await db.events.delete(id);
 }
 
 export async function listEvents(filter?: EventFilter): Promise<Event[]> {
+  let events: Event[];
   if (filter?.topicId) {
-    return db.events.where("topicId").equals(filter.topicId).reverse().sortBy("createdAt");
+    events = await db.events.where("topicId").equals(filter.topicId).reverse().sortBy("createdAt");
   } else if (filter?.resolutionStatus) {
-    return db.events.where("resolutionStatus").equals(filter.resolutionStatus).reverse().sortBy("createdAt");
+    events = await db.events.where("resolutionStatus").equals(filter.resolutionStatus).reverse().sortBy("createdAt");
+  } else {
+    events = await db.events.orderBy("createdAt").reverse().toArray();
   }
-  return db.events.orderBy("createdAt").reverse().toArray();
+  return events;
 }
 
 export async function getEventsByTopic(topicId: string): Promise<Event[]> {
@@ -200,16 +255,6 @@ export async function getUncategorizedDiaries(topicId: string, sinceDays: number
 // ── 感悟 CRUD ──
 
 export async function createInsight(input: CreateInsightInput): Promise<Insight> {
-  // 检查是否有相同内容的已有感悟（去重 + 引用计数）
-  if (input.content && input.sourceDiaryId) {
-    const existing = (await db.insights.toArray())
-      .filter(i => i.content === input.content && i.sourceDiaryId === input.sourceDiaryId);
-    if (existing.length > 0) {
-      const existed = existing[0];
-      await db.insights.update(existed.id, { referenceCount: (existed.referenceCount || 1) + 1 } as any);
-      return existed;
-    }
-  }
   const insight: Insight = {
     id: crypto.randomUUID(),
     title: input.title,
@@ -217,7 +262,6 @@ export async function createInsight(input: CreateInsightInput): Promise<Insight>
     linkedEventIds: input.linkedEventIds,
     linkedTopicIds: input.linkedTopicIds,
     sourceDiaryId: input.sourceDiaryId,
-    referenceCount: 1,
     createdAt: new Date(),
   };
   await db.insights.add(insight);
@@ -267,47 +311,45 @@ export async function createTopic(input: { name: string; domainId: string; color
 }
 
 export async function updateTopic(id: string, input: Partial<Pick<Topic, "name" | "domainId" | "color" | "icon" | "description">>): Promise<void> {
-  await db.topics.update(id, input as any);
+  await db.topics.update(id, input);
 }
 
 export async function deleteTopicCascade(id: string): Promise<void> {
   const diaries = await db.diaries.filter(d => (d.topicIds || []).includes(id)).toArray();
   for (const diary of diaries) {
-    await db.diaries.update(diary.id, { topicIds: (diary.topicIds || []).filter(tid => tid !== id) } as any);
+    await db.diaries.update(diary.id, { topicIds: (diary.topicIds || []).filter(tid => tid !== id) });
   }
   const insights = await db.insights.filter(i => (i.linkedTopicIds || []).includes(id)).toArray();
   for (const ins of insights) {
-    await db.insights.update(ins.id, { linkedTopicIds: (ins.linkedTopicIds || []).filter(tid => tid !== id) } as any);
+    await db.insights.update(ins.id, { linkedTopicIds: (ins.linkedTopicIds || []).filter(tid => tid !== id) });
   }
   const events = await db.events.where("topicId").equals(id).toArray();
-  // 事件保留，仅解除课题关联
   for (const event of events) {
-    await db.events.update(event.id, { topicId: "" } as any);
+    await deleteEvent(event.id);
   }
   await db.topics.delete(id);
 }
 
 export async function createDomain(input: { name: string; color: string; icon: string; description: string }): Promise<LifeDomain> {
-  const domains = await db.lifeDomains.orderBy("order").toArray();
-  const maxOrder = domains.length > 0 ? Math.max(...domains.map(d => (d as any).order || 0)) : 0;
+  const maxOrder = await db.lifeDomains.orderBy("order").last();
   const domain: LifeDomain = {
     id: crypto.randomUUID(),
     name: input.name,
     color: input.color,
     icon: input.icon,
     description: input.description,
-    order: maxOrder + 1,
+    order: (maxOrder?.order || 0) + 1,
   };
   await db.lifeDomains.add(domain);
   return domain;
 }
 
 export async function updateDomain(id: string, input: Partial<Pick<LifeDomain, "name" | "color" | "icon" | "description">>): Promise<void> {
-  await db.lifeDomains.update(id, input as any);
+  await db.lifeDomains.update(id, input);
 }
 
 export async function deleteDomainCascade(id: string): Promise<void> {
-  const topics = await getTopicsByDomain(id);
+  const topics = await db.topics.where("domainId").equals(id).toArray();
   for (const topic of topics) {
     await deleteTopicCascade(topic.id);
   }

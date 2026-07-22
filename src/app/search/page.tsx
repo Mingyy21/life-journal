@@ -1,23 +1,16 @@
 "use client";
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Search as SearchIcon } from "lucide-react";
-import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
 import SearchResults from "@/components/SearchResults";
 import SearchHistory from "@/components/SearchHistory";
 import { useSearch } from "@/hooks/useSearch";
-import { db, ensureDb } from "@/lib/db";
-import type { Topic } from "@/types";
+import { useTopics } from "@/hooks/useData";
 
 export default function SearchPage() {
   const router = useRouter();
   const { query, setQuery, results, isLoading, history, clearHistory, removeHistoryItem, handleSearch } = useSearch();
-  const [topics, setTopics] = useState<Topic[]>([]);
-
-  useEffect(() => {
-    ensureDb().then(() => db.topics.toArray().then(setTopics)).catch(() => {});
-  }, []);
+  const { data: topics = [] } = useTopics();
 
   return (
     <div className="space-y-4">

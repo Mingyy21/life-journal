@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState, useRef, useCallback, type ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { ensureDb, resetDbState } from "@/lib/db";
+import { migrateFromDexie } from "@/lib/migrate-from-dexie";
 
 interface InitState {
   ready: boolean;
@@ -26,6 +27,7 @@ export default function InitProvider({ children }: { children: ReactNode }) {
     setState(prev => ({ ...prev, error: null }));
 
     ensureDb()
+      .then(() => migrateFromDexie().catch(() => {}))
       .then(() => setState({ ready: true, error: null, retry: doInit }))
       .catch((err) => {
         initRef.current = false;

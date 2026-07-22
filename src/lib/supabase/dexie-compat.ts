@@ -123,14 +123,19 @@ class SupabaseCollection<T extends { id: string }> {
     return this.clone({ offsetN: n });
   }
 
+  private toQueryValue(v: any): any {
+    return v instanceof Date ? v.toISOString() : v;
+  }
+
   private buildQuery() {
     let req = supabase.from(this.tableName).select("*", { count: "exact" });
     req = req.eq("userId", userId());
 
     for (const f of this.filters) {
-      if (f.op === "eq") req = req.eq(f.col, f.value);
-      else if (f.op === "gte") req = req.gte(f.col, f.value);
-      else if (f.op === "lte") req = req.lte(f.col, f.value);
+      const val = this.toQueryValue(f.value);
+      if (f.op === "eq") req = req.eq(f.col, val);
+      else if (f.op === "gte") req = req.gte(f.col, val);
+      else if (f.op === "lte") req = req.lte(f.col, val);
     }
     if (this.orderCol) {
       req = req.order(this.orderCol, { ascending: this.orderAsc });
@@ -187,9 +192,10 @@ class SupabaseCollection<T extends { id: string }> {
     const req = supabase.from(this.tableName).select("*").eq("userId", userId());
     // Apply filters
     for (const f of this.filters) {
-      if (f.op === "eq") req.eq(f.col, f.value);
-      else if (f.op === "gte") req.gte(f.col, f.value);
-      else if (f.op === "lte") req.lte(f.col, f.value);
+      const val = this.toQueryValue(f.value);
+      if (f.op === "eq") req.eq(f.col, val);
+      else if (f.op === "gte") req.gte(f.col, val);
+      else if (f.op === "lte") req.lte(f.col, val);
     }
     const { data, error } = await req.order(col, { ascending: false }).limit(1);
     if (error) throw error;

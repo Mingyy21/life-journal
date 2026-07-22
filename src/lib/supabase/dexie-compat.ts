@@ -272,15 +272,15 @@ export class SupabaseTable<T extends { id: string }> {
 // ── DB proxy ──
 
 export const supabaseProxy = {
-  lifeDomains: new SupabaseTable<LifeDomain>("lifeDomains"),
+  lifeDomains: new SupabaseTable<LifeDomain>("lifedomains"),
   topics: new SupabaseTable<Topic>("topics"),
   diaries: new SupabaseTable<Diary>("diaries"),
-  analysisResults: new SupabaseTable<AnalysisResult>("analysisResults"),
+  analysisResults: new SupabaseTable<AnalysisResult>("analysisresults"),
   events: new SupabaseTable<Event>("events"),
   insights: new SupabaseTable<Insight>("insights"),
 
   async delete() {
-    for (const name of ["diaries", "topics", "lifeDomains", "analysisResults", "events", "insights"]) {
+    for (const name of ["diaries", "topics", "lifedomains", "analysisresults", "events", "insights"]) {
       const t = new SupabaseTable(name);
       await t.clear();
     }

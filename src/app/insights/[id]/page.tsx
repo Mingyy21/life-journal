@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import type { Insight, Topic, Event } from "@/types";
 import { ClientDate } from "@/components/ClientDate";
 import { EventBadge } from "@/components/EventBadge";
+import InsightRelationSection from "@/components/InsightRelationSection";
 
 export default function InsightDetailPage() {
   const params = useParams();
@@ -79,6 +80,8 @@ export default function InsightDetailPage() {
           </div>
         )}
       </div>
+
+      <InsightRelationSection insightId={insight.id} />
 
       {/* 删除 */}
       <div className="text-center">

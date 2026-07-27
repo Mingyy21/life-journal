@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { BookOpen, Menu, X, Home, Compass, BarChart3, Search, Flag, LogOut } from "lucide-react";
+import { BookOpen, Menu, X, Home, Compass, BarChart3, Search, Flag, LogOut, Sparkles } from "lucide-react";
 import ErrorBoundary from "./ErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -36,6 +36,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <nav className="hidden md:flex items-center gap-4">
             <Link href="/" className="text-sm text-calm-500 hover:text-calm-800 flex items-center gap-1"><Home className="w-4 h-4" /> 首页</Link>
             <Link href="/events" className="text-sm text-calm-500 hover:text-calm-800 flex items-center gap-1"><Flag className="w-4 h-4" /> 事件</Link>
+            <Link href="/vision" className="text-sm text-calm-500 hover:text-calm-800 flex items-center gap-1"><Sparkles className="w-4 h-4" /> 展望</Link>
             <Link href="/search" className="text-sm text-calm-500 hover:text-calm-800 flex items-center gap-1"><Search className="w-4 h-4" /> 搜索</Link>
             <Link href="/topics" className="text-sm text-calm-500 hover:text-calm-800 flex items-center gap-1"><Compass className="w-4 h-4" /> 课题</Link>
             <Link href="/stats" className="text-sm text-calm-500 hover:text-calm-800 flex items-center gap-1"><BarChart3 className="w-4 h-4" /> 统计</Link>
@@ -46,6 +47,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div className="max-w-2xl mx-auto px-4 py-2">
               <Link href="/" className="block px-3 py-2 rounded-lg text-sm hover:bg-calm-50" onClick={()=>setMenuOpen(false)}>首页</Link>
               <Link href="/events" className="block px-3 py-2 rounded-lg text-sm hover:bg-calm-50" onClick={()=>setMenuOpen(false)}>事件</Link>
+              <Link href="/vision" className="block px-3 py-2 rounded-lg text-sm hover:bg-calm-50" onClick={()=>setMenuOpen(false)}>人生展望</Link>
               <Link href="/search" className="block px-3 py-2 rounded-lg text-sm hover:bg-calm-50" onClick={()=>setMenuOpen(false)}>搜索</Link>
               <Link href="/topics" className="block px-3 py-2 rounded-lg text-sm hover:bg-calm-50" onClick={()=>setMenuOpen(false)}>课题</Link>
               <Link href="/stats" className="block px-3 py-2 rounded-lg text-sm hover:bg-calm-50" onClick={()=>setMenuOpen(false)}>统计</Link>

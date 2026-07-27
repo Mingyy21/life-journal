@@ -1,5 +1,5 @@
 import { supabase } from "./client";
-import type { Diary, Topic, LifeDomain, AnalysisResult, Event, Insight } from "@/types";
+import type { Diary, Topic, LifeDomain, AnalysisResult, Event, Insight, InsightRelation } from "@/types";
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonPrimitive[] | Record<string, any>;
@@ -317,9 +317,10 @@ export const supabaseProxy = {
   events: new SupabaseTable<Event>("events"),
   insights: new SupabaseTable<Insight>("insights"),
   worldviews: new SupabaseTable<any>("worldviews"),
+  insightRelations: new SupabaseTable<InsightRelation>("insight_relations"),
 
   async delete() {
-    for (const name of ["diaries", "topics", "lifedomains", "analysisresults", "events", "insights", "worldviews"]) {
+    for (const name of ["diaries", "topics", "lifedomains", "analysisresults", "events", "insights", "worldviews", "insight_relations"]) {
       const t = new SupabaseTable(name);
       await t.clear();
     }

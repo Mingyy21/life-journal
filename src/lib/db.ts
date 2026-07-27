@@ -1,5 +1,5 @@
 // 人生手记 - Supabase 数据库层
-import type { Diary, Topic, LifeDomain, AnalysisResult, Event, Insight, CreateEventInput, UpdateEventInput, CreateInsightInput, EventFilter, InsightFilter } from "@/types";
+import type { Diary, Topic, LifeDomain, AnalysisResult, Event, Insight, InsightRelation, RelationType, CreateEventInput, UpdateEventInput, CreateInsightInput, EventFilter, InsightFilter } from "@/types";
 import { supabaseProxy } from "@/lib/supabase/dexie-compat";
 
 export const db = supabaseProxy;
@@ -43,6 +43,7 @@ export const DEFAULT_TOPICS: Topic[] = [
   { id: "topic-love", name: "爱情", domainId: "domain-relationships", color: "#F06595", icon: "HeartHandshake", description: "恋爱关系、亲密关系中的成长", diaryCount: 0, createdAt: new Date() },
   { id: "topic-work", name: "工作", domainId: "domain-career", color: "#4ECDC4", icon: "Briefcase", description: "职业发展、工作困境与突破", diaryCount: 0, createdAt: new Date() },
   { id: "topic-study", name: "学习", domainId: "domain-career", color: "#45B7D1", icon: "BookOpen", description: "学习成长、技能提升与认知拓展", diaryCount: 0, createdAt: new Date() },
+  { id: "topic-life-vision", name: "人生理想", domainId: "domain-meaning", color: "#DDA0DD", icon: "Star", description: "对未来生活的畅想与规划", diaryCount: 0, createdAt: new Date() },
 ];
 
 // ── 初始化 ──
@@ -60,6 +61,21 @@ export async function initDefaultData(): Promise<void> {
 
   if (toAddTopics.length > 0) await db.topics.bulkAdd(toAddTopics);
   if (toAddDomains.length > 0) await db.lifeDomains.bulkAdd(toAddDomains);
+
+  // 自动创建人生展望事件
+  const existingEvents = await db.events.toArray();
+  const hasVisionEvent = existingEvents.some(e => e.topicId === 'topic-life-vision' && e.title === '人生展望');
+  if (!hasVisionEvent) {
+    await db.events.add({
+      id: 'event-life-vision',
+      topicId: 'topic-life-vision',
+      title: '人生展望',
+      description: '对未来生活的畅想与规划，以及各课题的底线',
+      resolutionStatus: 'unresolved',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
 }
 
 // ── 日记 CRUD ──
@@ -323,4 +339,80 @@ export async function getTopicsByDomain(domainId: string): Promise<Topic[]> {
 export async function getDiaryCountByTopic(topicId: string): Promise<number> {
   const diaries = await db.diaries.filter(d => (d.topicIds || []).includes(topicId)).toArray();
   return diaries.length;
+}
+
+// ── 人生展望 CRUD ──
+
+export async function getVisionInsight(): Promise<Insight | undefined> {
+  const all = await db.insights.toArray();
+  return all.find(i => i.type === 'vision');
+}
+
+export async function getBaselineByTopic(topicId: string): Promise<Insight | undefined> {
+  const all = await db.insights.toArray();
+  return all.find(i => i.type === 'baseline' && i.linkedTopicId === topicId);
+}
+
+export async function getAllBaselines(): Promise<Insight[]> {
+  const all = await db.insights.toArray();
+  return all.filter(i => i.type === 'baseline');
+}
+
+// ── 感悟关系 CRUD ──
+
+function getReverseType(type: RelationType): RelationType {
+  switch (type) {
+    case 'parent': return 'child';
+    case 'child': return 'parent';
+    case 'sibling': return 'sibling';
+    case 'opposite': return 'opposite';
+  }
+}
+
+export async function createRelation(input: {
+  sourceId: string;
+  targetId: string;
+  relationType: RelationType;
+}): Promise<InsightRelation> {
+  // 检查是否已存在
+  const existing = (await db.insightRelations.toArray())
+    .find(r => r.sourceId === input.sourceId && r.targetId === input.targetId);
+  if (existing) throw new Error('该关系已存在');
+
+  const now = new Date();
+  const forward: InsightRelation = {
+    id: crypto.randomUUID(),
+    sourceId: input.sourceId,
+    targetId: input.targetId,
+    relationType: input.relationType,
+    createdAt: now,
+  };
+  const reverse: InsightRelation = {
+    id: crypto.randomUUID(),
+    sourceId: input.targetId,
+    targetId: input.sourceId,
+    relationType: getReverseType(input.relationType),
+    createdAt: now,
+  };
+  await db.insightRelations.bulkAdd([forward, reverse]);
+  return forward;
+}
+
+export async function getRelationsForInsight(insightId: string): Promise<InsightRelation[]> {
+  const all = await db.insightRelations.toArray();
+  return all.filter(r => r.sourceId === insightId);
+}
+
+export async function deleteRelation(id: string): Promise<void> {
+  const rel = await db.insightRelations.get(id);
+  if (!rel) return;
+  await db.insightRelations.delete(id);
+  // 删除反向关系
+  const all = await db.insightRelations.toArray();
+  const reverse = all.find(r =>
+    r.sourceId === rel.targetId &&
+    r.targetId === rel.sourceId &&
+    r.relationType === getReverseType(rel.relationType)
+  );
+  if (reverse) await db.insightRelations.delete(reverse.id);
 }

@@ -45,8 +45,23 @@ export interface Insight {
   linkedTopicIds: string[];
   sourceDiaryId?: string;
   referenceCount?: number;
+  type?: InsightType;
+  linkedTopicId?: string;
+  versionGroup?: string;
   createdAt: Date;
 }
+
+export type InsightType = 'normal' | 'vision' | 'baseline';
+
+export interface InsightRelation {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  relationType: RelationType;
+  createdAt: Date;
+}
+
+export type RelationType = 'parent' | 'child' | 'sibling' | 'opposite';
 
 /** VAD三维情绪模型 */
 export interface VADScore {
@@ -131,6 +146,8 @@ export interface CreateInsightInput {
   linkedEventIds: string[];
   linkedTopicIds: string[];
   sourceDiaryId?: string;
+  type?: InsightType;
+  linkedTopicId?: string;
 }
 
 export interface DiaryFilter {
